@@ -194,7 +194,10 @@ class ELConnection(BaseConnection):
 	def send(self, packet):
 		"""Constructs the type and data in the ELPacket instance, packet and transmits"""
 		log.debug("Sending %s, %s" % (packet.type, packet.data))
-		length = len(packet.data) + 1
+		if packet.data is not None:
+			length = len(packet.data) + 1
+		else:
+			length = 1
 		to_send = struct.pack('<BH', packet.type, length)
 		if packet.data is not None:
 			to_send += packet.data
