@@ -116,6 +116,9 @@ class ELConnection(BaseConnection):
 	
 	def fileno(self):
 		"""Allows this object to be used with poll() etc"""
+		if not self.is_connected():
+			raise ConnectionException("Instance not connected to remote server, \
+				no fileno available")
 		return self.socket.fileno()
 
 	def is_connected(self):
@@ -186,7 +189,7 @@ class ELConnection(BaseConnection):
 	
 	def ping(self):
 		"""send a HEART_BEAT packet"""
-		self.send(ELPacket(ELNetToServer.HEART_BEAT, '\0'))
+		self.send(ELPacket(ELNetToServer.HEART_BEAT, None))
 
 	def send(self, packet):
 		"""Constructs the type and data in the ELPacket instance, packet and transmits"""
