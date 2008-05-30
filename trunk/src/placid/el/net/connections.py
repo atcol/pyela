@@ -10,7 +10,7 @@ from placid.el.net.elconstants import ELNetToServer
 from placid.el.net.packets import ELPacket
 from placid.el.common.exceptions import ConnectionException
 
-CONNECTED, DISCONNECTED = range(2)
+CONNECTED, CONNECTING, DISCONNECTED = range(3)
 
 def get_elconnection_by_config(config):
 	"""Create a connection by using the ConfigParser instance, config."""
@@ -45,17 +45,15 @@ class BaseConnection(object):
 		pass
 
 	def keep_alive(self):
-		"""Should call ping() if connection state deems necessary"""
-		pass
-
-	def ping(self):
-		"""send a packet to the server to keep this connection alive
-		Entirely implementation specific - some protocols may not need it
-		"""
+		"""Send the protocol-relevant packet that tells the server we're still alive"""
 		pass
 
 	def send(self, packet):
 		"""sends the given packet to the remote server"""
+		pass
+
+	def send_all(self, packets):
+		"""Send all of the ELPacket instances in the list packets"""
 		pass
 	
 	def recv(self, length=2048):
@@ -126,6 +124,9 @@ class ELConnection(BaseConnection):
 
 	def connect(self):
 		"""Connects to the EL server specified at construction"""
+		if self.is_connected():
+			raise ConnectionException("Already connected")
+		self.__setup_socket()
 		self.con_tries += 1
 		return self._send_login()
 
@@ -149,6 +150,9 @@ class ELConnection(BaseConnection):
 		try:
 			log.debug("port: %s" % type(self.port))
 			log.info('Connecting to %s:%d' % (self.host, self.port))
+			#Set non-blocking while connecting
+			#self.socket.setblocking(0)
+			#self.status = CONNECTING
 			ret = self.socket.connect_ex((self.host, self.port))
 			if ret == 0:
 				self.send(ELPacket(ELNetToServer.LOG_IN, login_str))	
@@ -157,16 +161,18 @@ class ELConnection(BaseConnection):
 				self.__set_last_send(time.time())
 				return True
 			else:
-				#An actual error, pass handling to the except block
-				log.error("Error connecting: %s" % ret)
-				log.error("\t%d = %s" % (ret, os.strerror(ret)))
+				log.error("Error %d connecting - %s" % (ret, os.strerror(ret)))
 				self.status = DISCONNECTED
-				raise socket.error, (ret, os.strerror(ret))
+				self.err = os.strerror(ret)
+				#raise socket.error, (ret, os.strerror(ret))
+				#raise ConnectionException("Socket error while connecting: %s" % os.strerror(ret))
+				return False
 		except (socket.error, socket.herror, socket.gaierror), why:
-			log.error('Connecting to %s:%i failed: %i: %s' % (self.host, self.port, why[0], why[1]))
+			#log.error('Connecting to %s:%i failed: %i: %s' % (self.host, self.port, why[0], why[1]))
+			self.error = "Connection failed: %i - %s" % (why[0], why[1])
 			self.socket = None
 			self.status = DISCONNECTED
-			raise ConnectionException('Socket error during connection: %s' % why[1])
+			#raise ConnectionException('Socket error during connection: %s' % why[1])
 			return False
 
 
@@ -175,8 +181,7 @@ class ELConnection(BaseConnection):
 			#log.info('Connecting to %s:%s' % (self.host, self.port))
 			try:
 				self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-				#Set non-blocking while connecting
-				#self.socket.setblocking(0)
+
 			except (socket.error, socket.herror, socket.gaierror), why:
 				log.error('Failed to create socket: %i: %s' % tuple(why))
 				self.socket = None
@@ -185,12 +190,8 @@ class ELConnection(BaseConnection):
 	def keep_alive(self):
 		"""Calls ping if last_send exceeds MAX_LAST_SEND_SECS"""
 		if int(time.time() - self.last_send) >= self.MAX_LAST_SEND_SECS:
-			self.ping()
+			self.send(ELPacket(ELNetToServer.HEART_BEAT, None))
 	
-	def ping(self):
-		"""send a HEART_BEAT packet"""
-		self.send(ELPacket(ELNetToServer.HEART_BEAT, None))
-
 	def send(self, packet):
 		"""Constructs the type and data in the ELPacket instance, packet and transmits"""
 		log.debug("Sending %s, %s" % (packet.type, packet.data))
@@ -204,6 +205,10 @@ class ELConnection(BaseConnection):
 		self.socket.send(to_send)
 		self.__set_last_send(time.time())
 		log.debug("Packet sent")
+	
+	def send_all(self, packets):
+		for packet in packets:
+			self.send(packet)
 
 	def recv(self, length=2048):
 		"""Return the contents of the socket. length is optional, defaults to 2048"""
