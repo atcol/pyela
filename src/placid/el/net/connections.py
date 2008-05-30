@@ -141,6 +141,7 @@ class ELConnection(BaseConnection):
 		"""Closes our socket gracefully"""
 		self.socket.shutdown(socket.SHUT_RDWR)
 		self.socket = None
+		self.status = DISCONNECTED
 
 	def _send_login(self):
 		if self.socket is None:
