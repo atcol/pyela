@@ -19,8 +19,7 @@ def get_elconnection_by_config(config):
 		host=config.get('login', 'host'), port=config.getint('login', 'port') \
 	)
 	elc.set_properties(config)
-	return elc
-
+	return elc 
 class BaseConnection(object):
 	"""Base connection class that defines common functionality for TCP connections"""
 
@@ -115,8 +114,7 @@ class ELConnection(BaseConnection):
 	def fileno(self):
 		"""Allows this object to be used with poll() etc"""
 		if not self.is_connected():
-			raise ConnectionException("Instance not connected to remote server, \
-				no fileno available")
+			raise ConnectionException("Instance not connected to remote server, no fileno available")
 		return self.socket.fileno()
 
 	def is_connected(self):
@@ -151,9 +149,6 @@ class ELConnection(BaseConnection):
 		try:
 			log.debug("port: %s" % type(self.port))
 			log.info('Connecting to %s:%d' % (self.host, self.port))
-			#Set non-blocking while connecting
-			#self.socket.setblocking(0)
-			#self.status = CONNECTING
 			ret = self.socket.connect_ex((self.host, self.port))
 			if ret == 0:
 				self.send(ELPacket(ELNetToServer.LOG_IN, login_str))	
@@ -165,15 +160,11 @@ class ELConnection(BaseConnection):
 				log.error("Error %d connecting - %s" % (ret, os.strerror(ret)))
 				self.status = DISCONNECTED
 				self.err = os.strerror(ret)
-				#raise socket.error, (ret, os.strerror(ret))
-				#raise ConnectionException("Socket error while connecting: %s" % os.strerror(ret))
 				return False
 		except (socket.error, socket.herror, socket.gaierror), why:
-			#log.error('Connecting to %s:%i failed: %i: %s' % (self.host, self.port, why[0], why[1]))
 			self.error = "Connection failed: %i - %s" % (why[0], why[1])
 			self.socket = None
 			self.status = DISCONNECTED
-			#raise ConnectionException('Socket error during connection: %s' % why[1])
 			return False
 
 
@@ -192,6 +183,8 @@ class ELConnection(BaseConnection):
 		"""Calls ping if last_send exceeds MAX_LAST_SEND_SECS"""
 		if int(time.time() - self.last_send) >= self.MAX_LAST_SEND_SECS:
 			self.send(ELPacket(ELNetToServer.HEART_BEAT, None))
+
+
 	
 	def send(self, packet):
 		"""Constructs the type and data in the ELPacket instance, packet and transmits"""
@@ -239,3 +232,43 @@ class ELConnection(BaseConnection):
 	def __str__(self):
 		return "%s @ %s:%d" % (self.username, self.host, self.port)
 
+class QueuedELConnection(ELConnection):
+	"""Derived from ELConnection. 
+	Replaces the send method to force use of _opt, the packet
+	output queue.
+	The queue method has been introduced for appending packets that
+	do not need to be sent immediately
+	"""
+	
+	def __init__(self, username, password, host='game.eternal-lands.com', port=2001, MAX_CON_TRIES=3, MAX_LAST_SEND_SECS=18):
+		"""Same as ELConnection, apart from the new _opt list for
+		queuing packets
+		"""
+		self.host = host
+		self.port = port
+		self.username = username
+		self.password = password
+		self.status = DISCONNECTED
+		self.socket = None
+		self.last_send = None #property(fset=__set_last_send)
+		self.con_tries = 0
+		self.MAX_CON_TRIES = MAX_CON_TRIES
+		self.MAX_LAST_SEND_SECS = MAX_LAST_SEND_SECS
+		self._opt = []
+
+	def send(self, packet):
+		"""Overrides send() in ELConnection. Appends packet to
+		the output queue then sends all in that queue.
+		"""
+		self._opt.append(packet)
+		self.flush_queue()
+		
+	def queue(self, packet):
+		"""Place the given packet in the queue ready to be sent"""
+		self._opt.append(packet)
+	
+	def flush_queue(self):
+		"""send all the packets in the output queue"""
+		for packet in self.packets:
+			self.packets.remove(packet)
+			super(QueuedELConnection, self).send(packet)
