@@ -1,4 +1,4 @@
-from placid.logic.
+from placid.logic.packethandlers import BasePacketHandler
 
 class BaseConnection(object):
 	"""Base connection class that defines common functionality for TCP connections"""
