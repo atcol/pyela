@@ -1,4 +1,4 @@
-import collections.deque
+import collections
 
 class BasePacketHandler(object):
 	"""The base packet handler type.

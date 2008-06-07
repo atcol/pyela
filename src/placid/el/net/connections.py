@@ -1,16 +1,21 @@
 import socket
 import os
-import logging as log
+import logging
 import struct
 import time
 import ConfigParser
 
+from placid.net.connections import BaseConnection
 from placid.el.net.elconstants import ELConstants
 from placid.el.net.elconstants import ELNetToServer
 from placid.el.net.packets import ELPacket
+from placid.el.net.packethandlers import BasePacketHandler
 from placid.el.common.exceptions import ConnectionException
+from placid.el.logic.session import ELSession
 
 CONNECTED, CONNECTING, DISCONNECTED = range(3)
+
+log = logging.getLogger('placid.el.net.connections')
 
 def get_elconnection_by_config(config):
 	"""Create a connection by using the ConfigParser instance, config."""
@@ -20,49 +25,10 @@ def get_elconnection_by_config(config):
 	)
 	elc.set_properties(config)
 	return elc 
-class BaseConnection(object):
-	"""Base connection class that defines common functionality for TCP connections"""
-
-	def fileno(self):
-		"""Return the fileno for this connection's socket?"""
-		pass
-	
-	def is_connected(self):
-		"""Are we connected?"""
-		pass
-
-	def connect(self):
-		"""Connects to a remote server"""
-		pass
-	
-	def reconnect(self):
-		"""Disconnects then reconnects"""
-		pass
-
-	def disconnect(self):
-		"""Closes the connection gracefully"""
-		pass
-
-	def keep_alive(self):
-		"""Send the protocol-relevant packet that tells the server we're still alive"""
-		pass
-
-	def send(self, packet):
-		"""sends the given packet to the remote server"""
-		pass
-
-	def send_all(self, packets):
-		"""Send all of the ELPacket instances in the list packets"""
-		pass
-	
-	def recv(self, length=2048):
-		"""process input and convert to an instance of placid.el.net.packets.Packet"""
-		pass
-
 
 class ELConnection(BaseConnection):
 	"""This class provides an easy to use way of communicating with an Eternal Lands
-	server.
+	server. 
 
 	Attributes:
 		host		- the hostname to connect to
@@ -76,15 +42,28 @@ class ELConnection(BaseConnection):
 		MAX_CON_TRIES - the maximum amount of [re]connection attempts
 		MAX_LAST_SEND_SECS - the maximum amount of wait in seconds, 
 							that we can send a packet
+		packet_handler - the packet handler instance used to process input and generated output
+							from the underlying connection. By default, this is assigned to 
+							BasePacketHandler
 	"""
 
-	def __init__(self, username, password, host='game.eternal-lands.com', port=2001, MAX_CON_TRIES=3, MAX_LAST_SEND_SECS=18):
+	def __init__(self, username, password, host='game.eternal-lands.com', port=2001,\
+		packet_handler=BasePacketHandler(), MAX_CON_TRIES=3, MAX_LAST_SEND_SECS=18):
 		"""Create an instance with the given username and password, 
 		as well as the hostname and port.
 		This constructor will assume default values for attributes 
 		for all but the username and password
 		
-		Attributes:
+		Parameters:
+			username - the EL username
+			password - the password
+			host	 - the hostname, default 'game.eternal-lands.com'
+			port	 - the port, default 2001
+			packet_handler - the packet/message handler, defaults to BasePacketHandler()
+			MAX_CON_TRIES - the maximum amount of connection attempts, default 3
+			MAX_LAST_SEND_SECS - the maximum amount of seconds allowed between 
+								 messages to the server, default 18
+			incomplete_msgs - list of ELPacket instances who are incomplete
 			"""
 		self.host = host
 		self.port = port
@@ -96,6 +75,8 @@ class ELConnection(BaseConnection):
 		self.con_tries = 0
 		self.MAX_CON_TRIES = MAX_CON_TRIES
 		self.MAX_LAST_SEND_SECS = MAX_LAST_SEND_SECS
+		self.packet_handler = packet_handler
+		self.incomplete_msgs = []
 
 	def set_properties(self, config):
 		"""Load the configuration parameters from config.
@@ -109,7 +90,7 @@ class ELConnection(BaseConnection):
 		self.port = self.config.getint('login', 'port')
 		self.MAX_CON_TRIES = config.getint('actions', 'max_recon')
 		self.MAX_LAST_SEND_SECS = config.getint('actions', 'max_send_secs')
-
+		self.session = ELSession(config)
 	
 	def fileno(self):
 		"""Allows this object to be used with poll() etc"""
@@ -137,6 +118,7 @@ class ELConnection(BaseConnection):
 
 	def disconnect(self):
 		"""Closes our socket gracefully"""
+		self.send(ELPacket(ELNetToServer.BYE, None))
 		self.socket.shutdown(socket.SHUT_RDWR)
 		self.socket = None
 		self.status = DISCONNECTED
@@ -183,8 +165,6 @@ class ELConnection(BaseConnection):
 		"""Calls ping if last_send exceeds MAX_LAST_SEND_SECS"""
 		if int(time.time() - self.last_send) >= self.MAX_LAST_SEND_SECS:
 			self.send(ELPacket(ELNetToServer.HEART_BEAT, None))
-
-
 	
 	def send(self, packet):
 		"""Constructs the type and data in the ELPacket instance, packet and transmits"""
@@ -232,43 +212,43 @@ class ELConnection(BaseConnection):
 	def __str__(self):
 		return "%s @ %s:%d" % (self.username, self.host, self.port)
 
-class QueuedELConnection(ELConnection):
-	"""Derived from ELConnection. 
-	Replaces the send method to force use of _opt, the packet
-	output queue.
-	The queue method has been introduced for appending packets that
-	do not need to be sent immediately
-	"""
+#class QueuedELConnection(ELConnection):
+	#"""Derived from ELConnection. 
+	#Replaces the send method to force use of _opt, the packet
+	#output queue.
+	#The queue method has been introduced for appending packets that
+	#do not need to be sent immediately
+	#"""
 	
-	def __init__(self, username, password, host='game.eternal-lands.com', port=2001, MAX_CON_TRIES=3, MAX_LAST_SEND_SECS=18):
-		"""Same as ELConnection, apart from the new _opt list for
-		queuing packets
-		"""
-		self.host = host
-		self.port = port
-		self.username = username
-		self.password = password
-		self.status = DISCONNECTED
-		self.socket = None
-		self.last_send = None #property(fset=__set_last_send)
-		self.con_tries = 0
-		self.MAX_CON_TRIES = MAX_CON_TRIES
-		self.MAX_LAST_SEND_SECS = MAX_LAST_SEND_SECS
-		self._opt = []
+	#def __init__(self, username, password, host='game.eternal-lands.com', port=2001, MAX_CON_TRIES=3, MAX_LAST_SEND_SECS=18):
+		#"""Same as ELConnection, apart from the new _opt list for
+		#queuing packets
+		#"""
+		#self.host = host
+		#self.port = port
+		#self.username = username
+		#self.password = password
+		#self.status = DISCONNECTED
+		#self.socket = None
+		#self.last_send = None #property(fset=__set_last_send)
+		#self.con_tries = 0
+		#self.MAX_CON_TRIES = MAX_CON_TRIES
+		#self.MAX_LAST_SEND_SECS = MAX_LAST_SEND_SECS
+		#self._opt = []
 
-	def send(self, packet):
-		"""Overrides send() in ELConnection. Appends packet to
-		the output queue then sends all in that queue.
-		"""
-		self._opt.append(packet)
-		self.flush_queue()
+	#def send(self, packet):
+		#"""Overrides send() in ELConnection. Appends packet to
+		#the output queue then sends all in that queue.
+		#"""
+		#self._opt.append(packet)
+		#self.flush_queue()
 		
-	def queue(self, packet):
-		"""Place the given packet in the queue ready to be sent"""
-		self._opt.append(packet)
+	#def queue(self, packet):
+		#"""Place the given packet in the queue ready to be sent"""
+		#self._opt.append(packet)
 	
-	def flush_queue(self):
-		"""send all the packets in the output queue"""
-		for packet in self.packets:
-			self.packets.remove(packet)
-			super(QueuedELConnection, self).send(packet)
+	#def flush_queue(self):
+		#"""send all the packets in the output queue"""
+		#for packet in self.packets:
+			#self.packets.remove(packet)
+			#super(QueuedELConnection, self).send(packet)
