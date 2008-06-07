@@ -1,4 +1,7 @@
 import collections
+import logging
+
+log = logging.getLogger('placid.net.packethandlers')
 
 class BasePacketHandler(object):
 	"""The base packet handler type.
@@ -27,4 +30,6 @@ class BasePacketHandler(object):
 		from the queue
 		"""
 		if len(self._opt) > 0:
-			return self._opt.popleft()
+			p =  self._opt.popleft()
+			log.debug("packet handler popped %s from queue" % p)
+			return p

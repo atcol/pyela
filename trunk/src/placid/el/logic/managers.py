@@ -126,9 +126,6 @@ class MultiConnectionManager(ConnectionManager):
 							log.error("Empty packets returned. Connection down? Reconnecting... (con=%s)" % con)
 							self.__reconnect(con)
 							self.__register_connections()
-					#elif p_event & select.POLLOUT:
-						# we can write, clear the connections queue
-						#log.debug("POLLOUT for con '%s'" % con)
 					con.process_queue()
 
 	def __reconnect(self, con):

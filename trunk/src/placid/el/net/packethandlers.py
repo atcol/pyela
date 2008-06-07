@@ -7,9 +7,7 @@ import struct
 from placid.net.packethandlers import BasePacketHandler
 from placid.el.net.elconstants import ELNetFromServer, ELNetToServer
 from placid.el.net.packets import ELPacket
-from placid.el.net.parsers import ELRawTextMessageParser, ELAddActorMessageParser
-from placid.el.common.actors import ELActor
-from placid.el.util.strings import strip_chars
+from placid.el.net.parsers import ELRawTextMessageParser, ELAddActorMessageParser, ELRemoveActorMessageParser
 
 log = logging.getLogger('placid.el.net.packethandlers')
 
@@ -27,7 +25,7 @@ class ELTestPacketHandler(BasePacketHandler):
 	def __setup_callbacks(self):
 		self.CALLBACKS[ELNetFromServer.RAW_TEXT] = ELRawTextMessageParser(self.session)
 		self.CALLBACKS[ELNetFromServer.ADD_NEW_ENHANCED_ACTOR] = ELAddActorMessageParser(self.session)
-		#self.CALLBACKS[ELNetFromServer.REMOVE_ACTOR] = ELRemoveActorMessageParser(self.session)
+		self.CALLBACKS[ELNetFromServer.REMOVE_ACTOR] = ELRemoveActorMessageParser(self.session)
 		#self.CALLBACKS[ELNetFromServer.ADD_NEW_ACTOR] = 'new_actor'
 
 	def process_packets(self, packets):
@@ -37,8 +35,5 @@ class ELTestPacketHandler(BasePacketHandler):
 			packets.remove(packet)
 			if packet.type in self.CALLBACKS:
 				opt_packets = self.CALLBACKS[packet.type].parse(packet)
-				if len(opt_packets) > 0:
-					self._opt.append(opt_packets)
-
-
-
+				if opt_packets and len(opt_packets) > 0:
+					self._opt.extend(opt_packets)

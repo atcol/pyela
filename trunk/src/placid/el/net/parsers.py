@@ -5,8 +5,12 @@ The MessageParser base class defines common functionality for using these
 objects without prior knowledge of the instance at runtime.
 """
 import logging
+import struct
 
 from placid.el.common.actors import ELActor
+from placid.el.util.strings import strip_chars
+from placid.el.net.packets import ELPacket
+from placid.el.net.elconstants import ELNetFromServer, ELNetToServer
 
 log = logging.getLogger('placid.el.net.parsers')
 
@@ -79,6 +83,7 @@ class ELAddActorMessageParser(MessageParser):
 			actor.z_rot, actor.type, actor.frame, actor.max_health, \
 			actor.cur_health, actor.kind_of_actor, actor.name))
 		return []
+
 class ELRemoveActorMessageParser(MessageParser):
 	def parse(self, packet):
 		"""Remove actor packet. Remove from self.session.actors dict"""
