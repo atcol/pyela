@@ -1,1 +1,1 @@
-all = ["logic", "net", "common"]
+all = ["logic", "net", "common", "util"]

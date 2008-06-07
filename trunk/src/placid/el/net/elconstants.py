@@ -637,6 +637,7 @@ class ELConstants(ReflectiveConstants):
 class ELNetFromServer(ReflectiveConstants):
 	"""Holds message types that are sent TO the client, from the server"""
 # To client commands
+	RAW_TEXT = 0
 	ADD_NEW_ACTOR = 1
 	ADD_ACTOR_COMMAND = 2
 	YOU_ARE = 3

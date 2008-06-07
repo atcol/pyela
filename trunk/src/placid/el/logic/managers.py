@@ -3,7 +3,7 @@ import select
 import struct
 import sys
 import datetime
-import logging as log
+import logging
 import ConfigParser
 
 from placid.el.net.connections import ELConnection
@@ -12,6 +12,9 @@ from placid.el.net.elconstants import ELNetFromServer, ELNetToServer
 from placid.el.net.packets import ELPacket
 from placid.el.logic.session import ELSession
 from placid.el.common.exceptions import ConnectionException, ManagerException
+from placid.el.net.packethandlers import ELTestPacketHandler
+
+log = logging.getLogger('placid.el.net.managers')
 
 LAST_ASTRO_MAX_SECS = 60
 
@@ -22,7 +25,7 @@ HEART_BEAT_MAX_SECS = 19
 POLL_TIMEOUT_MILLIS = HEART_BEAT_MAX_SECS * 1000
 
 class ConnectionManager(object):
-	"""A manager for a Connection object"""
+	"""A manager for a Connection object."""
 	def __init__(self):
 		pass
 
@@ -36,12 +39,15 @@ class ConnectionManager(object):
 class MultiConnectionManager(ConnectionManager):
 	"""A derived class from ConnectionManager.
 	This implementation can handle multiple instances of 
-	placid.el.net.connections.Connection
+	placid.el.net.connections.Connection. 
+
+	All messages received (instances of placid.el.net.packets.Packet) are passed to 
+	the particular connection's packet handler (placid.el.net.packethandlers)
 
 	Attributes:
 		_p 			- instance of select.poll(); leave it alone
-		connection  - the placid.el.net.Connection instance passed
-				 	  to init
+		connections - a list of placid.net.connections.BaseConnection or derivative
+					  to manage
 		config		- the instance of ConfigParser, passed to init
 		_opt		- the packet output buffer; leave it alone
 		_inp		- the packet input buffer; leave it alone
@@ -56,10 +62,6 @@ class MultiConnectionManager(ConnectionManager):
 			self.connections = connections
 		else:
 			raise ManagerException('None cannot be a connection')
-		#self.connection.MAX_CON_TRIES = config.getint('actions', 'max_recon')
-		#self._opt = {}
-		#self._inp = {}
-
 
 	def __set_opt(self, val):
 		log.info("Something's trying to set my output queue. Blocked!")
@@ -85,11 +87,6 @@ class MultiConnectionManager(ConnectionManager):
 		else:
 			raise ManagerException('Cannot register connections. None provided')
 
-		# the contents of each NEW_MINUTE packet
-		el_mins = -1
-		# the amount of EL minutes since our last astro send
-		min_count = 0
-		
 		while len(self.connections) > 0:
 			#log.debug("Got %s from poll()" % p_opt)
 			#log.debug("Last packet diff: %d" % int(time.time() - self.connection.last_send))
@@ -98,7 +95,6 @@ class MultiConnectionManager(ConnectionManager):
 			log.debug("Setting poll with timeout %d" % poll_time)
 			p_opt = self._p.poll(poll_time)
 			log.debug("Poll ended: %s" % p_opt)
-
 
 			# p_opt may be empty, which means the timeout occured
 			if len(p_opt) == 0:
@@ -115,44 +111,35 @@ class MultiConnectionManager(ConnectionManager):
 
 				p_event = None
 				for p in p_opt:
-					p_event = p
 					p_fileno = p[0] # the file descriptor and poll event
+					p_event = p[1]
 					con = self.get_connection_by_id(p_fileno)
-					if p[1] & select.POLLIN or p[1] & select.POLLPRI:
+					if p_event & select.POLLIN or p_event & select.POLLPRI:
 						# found the con poll's referring to
-						log.info("Got data for connection '%s'" % con)
+						log.debug("Got data for connection '%s'" % con)
 						packets = con.recv(length=2048)
 						#log.debug("Bytes (%d): %s" % (len(bytes), bytes))
 						if len(packets) != 0:
 							log.debug("Received %d packets" % len(packets))
-							for packet in packets:
-								log.info("Message: %s?, %d, type=%s" % \
-								(ELNetFromServer.to_identifier(ELNetFromServer(), int(packet.type)), packet.type, type(packet)))
-								
-								"""deal with the packets outside of here, using an event handler?"""
-								#self._inp.extend(packets)
+							con.process_packets(packets)
 						else:
 							log.error("Empty packets returned. Connection down? Reconnecting... (con=%s)" % con)
 							self.__reconnect(con)
 							self.__register_connections()
-					elif p[1] & select.POLLERR:
-						log.error("Pol returned an error for %s" % con)
-
-
-
-			
-			"""Process output queue?"""
-			self.__process_opt_queue()
+					#elif p_event & select.POLLOUT:
+						# we can write, clear the connections queue
+						#log.debug("POLLOUT for con '%s'" % con)
+					con.process_queue()
 
 	def __reconnect(self, con):
-		if not con.is_connected():
-			log.info("Reconnect failed. Sleeping...")
-			# connection retries sleep
-			time.sleep(self.config.getint('actions', 'reconnect_secs'))
-			try:
-				return con.reconnect()
-			except ConnectionException, ce:
-				log.error("Exception when reconnecting: %s" % ce)
+		# connection retries sleep
+		try:
+			log.debug("Sleeping 5 seconds before reconnect")
+			time.sleep(5)
+			#con.con_tries = 0
+			return con.reconnect()
+		except ConnectionException, ce:
+			log.error("Exception when reconnecting: %s" % ce)
 
 	def get_connection_by_id(self, id):
 		for con in self.connections:
@@ -168,18 +155,13 @@ class MultiConnectionManager(ConnectionManager):
 		for con in self.connections:
 			this_pt = int(con.MAX_LAST_SEND_SECS - int(time.time() - con.last_send))
 			log.debug("Calc'd poll time for %s is %d" % (con, int(this_pt)))
-			if this_pt < poll_time:
+			if this_pt < poll_time and this_pt > 0 and poll_time > 0:
 				poll_time = this_pt
+			else:
+				poll_time = 20
+				break
 
 		return int(poll_time * 1000)
-
-	def __process_opt_queue(self):
-		pass
-		#for packet in self._opt:
-			#self.connection.send(packet)
-			#self._opt.remove(packet)
-		#for con in self.connections:
-			#con.process_queue()
 
 	def __connect_all(self):
 		"""call connect on all the connections if con.is_connected() yields False"""
