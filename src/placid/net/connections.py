@@ -1,4 +1,8 @@
+import logging 
+
 from placid.net.packethandlers import BasePacketHandler
+
+log = logging.getLogger('placid.net.connections')
 
 class BaseConnection(object):
 	"""Base connection class that defines common functionality for TCP connections"""
@@ -53,6 +57,7 @@ class BaseConnection(object):
 		"""
 		while True:
 			p = self.packet_handler.opt_queue_shift()
+			log.debug("Processing: %s" % p)
 			if not p:
 				break
 			else:
