@@ -41,11 +41,4 @@ class ELTestPacketHandler(BasePacketHandler):
 					self._opt.append(opt_packets)
 
 
-	def remove_actor(self, packet):
-		"""Remove actor packet. Remove from self.session.actors dict"""
-		log.debug("Remove actor packet: '%s'" % packet.data)
-		actor_id = struct.unpack('<H', packet.data)
-		#log.debug("Removing actor '%s' by ID '%d' from %s" % (self.session.actors[actor_id], actor_id, self.session.actors))
-		log.debug("Actors: %s" % self.session.actors)
-		if actor_id in self.session.actors:
-			del self.session.actors[actor_id]
+
