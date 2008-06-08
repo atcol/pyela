@@ -20,7 +20,7 @@ LAST_ASTRO_MAX_SECS = 60
 
 LAST_ASTRO_MAX_MINS = 1
 
-HEART_BEAT_MAX_SECS = 19
+HEART_BEAT_MAX_SECS = 18
 
 POLL_TIMEOUT_MILLIS = HEART_BEAT_MAX_SECS * 1000
 
@@ -148,7 +148,7 @@ class MultiConnectionManager(ConnectionManager):
 		"""Calculate the poll time from all the connections in milliseconds, 
 		based on their MAX_LAST_SEND_SECS and their last_send value
 		"""
-		poll_time = 20
+		poll_time = HEART_BEAT_MAX_SECS
 		for con in self.connections:
 			this_pt = int(con.MAX_LAST_SEND_SECS - int(time.time() - con.last_send))
 			log.debug("Calc'd poll time for %s is %d" % (con, int(this_pt)))
@@ -157,6 +157,8 @@ class MultiConnectionManager(ConnectionManager):
 			else:
 				poll_time = 20
 				break
+		if poll_time < 0:
+			poll_time = HEART_BEAT_MAX_SECS
 
 		return int(poll_time * 1000)
 
