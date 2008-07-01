@@ -4,6 +4,7 @@ import logging
 import struct
 import time
 import ConfigParser
+import collections
 
 from placid.net.connections import BaseConnection
 from placid.el.net.elconstants import ELConstants
@@ -64,7 +65,7 @@ class ELConnection(BaseConnection):
 			MAX_LAST_SEND_SECS - the maximum amount of seconds allowed between 
 								 messages to the server, default 18
 			incomplete_msgs - list of ELPacket instances who are incomplete
-			"""
+		"""
 		self.host = host
 		self.port = port
 		self.username = username
@@ -91,6 +92,7 @@ class ELConnection(BaseConnection):
 		self.MAX_CON_TRIES = config.getint('actions', 'max_recon')
 		self.MAX_LAST_SEND_SECS = config.getint('actions', 'max_send_secs')
 		self.session = ELSession(config)
+		self._inp = "" # input buffer, for incomplete messages
 	
 	def fileno(self):
 		"""Allows this object to be used with poll() etc"""
@@ -163,7 +165,8 @@ class ELConnection(BaseConnection):
 	
 	def keep_alive(self):
 		"""Calls ping if last_send exceeds MAX_LAST_SEND_SECS"""
-		if int(time.time() - self.last_send) >= self.MAX_LAST_SEND_SECS:
+		diff = int(time.time() - self.last_send)
+		if diff >= self.MAX_LAST_SEND_SECS:
 			self.send(ELPacket(ELNetToServer.HEART_BEAT, None))
 	
 	def send(self, packet):
@@ -187,22 +190,30 @@ class ELConnection(BaseConnection):
 	def recv(self, length=2048):
 		"""Return the contents of the socket. length is optional, defaults to 2048"""
 		packets = []
-		def parse_message(raw_data):
+		def parse_message():
 			"""Return the packet type (see ELConstants) and its data as a tuple"""
 			pos = 0
-			while pos < len(raw_data):
-				if len(raw_data[pos:]) >= 3:
-					header = struct.unpack('<BH', raw_data[pos:pos+3])
+			while pos < len(self._inp):
+				#if len(raw_data[pos:]) >= 3:
+				if len(self._inp) >= 3:
+					#header = struct.unpack('<BH', raw_data[pos:pos+3])
+					header = struct.unpack('<BH', self._inp[pos:pos+3])
 					msg_len = header[1]
-					yield ELPacket(header[0], raw_data[pos+3:pos+2+msg_len])
-					pos += 2+msg_len
+					#yield ELPacket(header[0], raw_data[pos+3:pos+2+msg_len])
+					yield ELPacket(header[0], self._inp[pos+3:pos+2+msg_len])
+					if len(self._inp) > pos+2+msg_len:
+						self._inp = self._inp[pos+2+msg_len]
+					else:
+						self._inp = ""
+					pos = 0
+					#pos += 2+msg_len
 				else:
-					#We don't have the entire header, return what we have
-					yield ELPacket(-1, raw_data[pos:])
+					#We don't have the entire header, buffer
+					yield None
 					break
 			return
-		data = self.socket.recv(length)
-		for packet in parse_message(data):
+		self._inp += self.socket.recv(length)
+		for packet in parse_message():
 			packets.append(packet)
 		return packets
 
