@@ -77,7 +77,7 @@ class ELConnection(BaseConnection):
 		self.MAX_CON_TRIES = MAX_CON_TRIES
 		self.MAX_LAST_SEND_SECS = MAX_LAST_SEND_SECS
 		self.packet_handler = packet_handler
-		self.incomplete_msgs = []
+		self._inp = ""# this is temporary
 
 	def set_properties(self, config):
 		"""Load the configuration parameters from config.
