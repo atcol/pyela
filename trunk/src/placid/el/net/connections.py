@@ -166,7 +166,7 @@ class ELConnection(BaseConnection):
 	def keep_alive(self):
 		"""Calls ping if last_send exceeds MAX_LAST_SEND_SECS"""
 		diff = int(time.time() - self.last_send)
-		if diff >= self.MAX_LAST_SEND_SECS:
+		if self.is_connected() and diff >= self.MAX_LAST_SEND_SECS:
 			self.send(ELPacket(ELNetToServer.HEART_BEAT, None))
 	
 	def send(self, packet):
