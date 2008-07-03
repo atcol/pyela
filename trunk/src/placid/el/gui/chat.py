@@ -96,20 +96,3 @@ class ChatGUI(object):
 	def destroy(self, widget, data=None):
 		gtk.main_quit()
 		return False
-
-	#def main(self):
-		#print "In main"
-		##while gtk.events_pending(block=False):
-		#print "before main iteration"
-		#while not gtk.main_iteration(block=True):
-			#print "after main iteration"
-			#self.elc.keep_alive()
-			#packets = self.elc.recv()
-			#print "Received packets: %s" % packets
-			#for packet in packets:
-				#print "processing packet: %s" % packet
-				#if packet and packet.type == ELNetFromServer.RAW_TEXT:
-					#print "found raw text: %s" % packet.data
-					#self.chat_buff.set_text(self.chat_buff.get_text() + "\n" + packet.data.replace('\0', ''))
-					#print "added raw text to label"
-		#print "chat gui main iteration ended"
