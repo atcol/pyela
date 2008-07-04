@@ -192,29 +192,21 @@ class ELConnection(BaseConnection):
 		packets = []
 		def parse_message():
 			"""Return the packet type (see ELConstants) and its data as a tuple"""
-			pos = 0
-			while pos < len(self._inp):
-				#if len(raw_data[pos:]) >= 3:
-				if len(self._inp) >= 3:
-					#header = struct.unpack('<BH', raw_data[pos:pos+3])
-					header = struct.unpack('<BH', self._inp[pos:pos+3])
-					msg_len = header[1]
-					#yield ELPacket(header[0], raw_data[pos+3:pos+2+msg_len])
-					yield ELPacket(header[0], self._inp[pos+3:pos+2+msg_len])
-					if len(self._inp) > pos+2+msg_len:
-						self._inp = self._inp[pos+2+msg_len]
-					else:
-						self._inp = ""
-					pos = 0
-					#pos += 2+msg_len
+			while len(self._inp) >= 3:
+				header = struct.unpack('<BH', self._inp[:3])
+				msg_len = header[1]-1
+				if len(self._inp) >= msg_len+3:
+					print "yield %d %d" % header
+					yield ELPacket(header[0], self._inp[3:3+msg_len])
+					#Get rid of the message we just returned
+					self._inp = self._inp[3+msg_len:] 
 				else:
-					#We don't have the entire header, buffer
-					yield None
-					break
-			return
+					#We don't have the entire message, abort
+					return
 		self._inp += self.socket.recv(length)
 		for packet in parse_message():
-			packets.append(packet)
+			if packet:
+				packets.append(packet)
 		return packets
 
 	def __set_last_send(self, t):
