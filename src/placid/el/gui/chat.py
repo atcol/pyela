@@ -35,10 +35,6 @@ class ChatGUI(object):
 		self.chat_buff = gtk.TextBuffer()
 		self.append_chat('Welcome to Pyela-Chat, part of the Pyela toolset. Visit pyela.googlecode.com for more information')
 		self.chat_view = gtk.TextView(self.chat_buff)
-		#self.chat_view.set_single_line_mode(False)
-		#self.chat_view.set_max_width_chars(100)
-		#self.chat_view.set_line_wrap(True)
-		#self.chat_view.set_selectable(True)
 		self.chat_view.set_size_request(640, 380)
 		self.chat_view.set_editable(False)
 		self.chat_view.set_wrap_mode(gtk.WRAP_WORD)
@@ -51,8 +47,6 @@ class ChatGUI(object):
 
 		# add the scrollable win to the vbox
 		self.vbox.pack_start(self.scrolled_win, False, True, 0)
-		#self.vbox.pack_start(self.chat_view, False, False, 0)
-		self.window.add(self.scrolled_win)
 
 		# setup the chat input & send button
 		self.msg_txt = gtk.Entry(max=155)
@@ -74,13 +68,18 @@ class ChatGUI(object):
 		self.chat_buff.insert(self.chat_buff.get_end_iter(), text)
 
 	def __keypress_send_msg(self, widget, event=None):
-		print "key press: %s, %s" % (widget, event)
 		if event.keyval == gtk.keysyms.Return:
 			self.send_msg(None, None)
 		return False
 	
 	def send_msg(self, widget, data=None):
-		self.elc.send(ELPacket(ELNetToServer.RAW_TEXT, self.msg_txt.get_text()))
+		msg = self.msg_txt.get_text()
+		type = ELNetToServer.RAW_TEXT
+		if self.msg_txt.get_text().startswith('/'):
+			type = ELNetToServer.SEND_PM
+			msg = self.msg_txt.get_text()[1:]
+
+		self.elc.send(ELPacket(type, msg))
 		self.msg_txt.set_text("")
 		return True
 
@@ -89,7 +88,6 @@ class ChatGUI(object):
 		packets = self.elc.recv()
 		for packet in packets:
 			if packet and packet.type == ELNetFromServer.RAW_TEXT:
-				#self.chat_buff.set_text(self.chat_buff.get_text() + "\n" + strip_chars(packet.data).replace('\0', ''))
 				self.append_chat("\n%s" % strip_chars(packet.data).replace('\0', ''))
 		return True
 
