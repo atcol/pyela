@@ -69,7 +69,7 @@ class ChatGUI(object):
 
 	def append_chat(self, text):
 		self.chat_buff.insert(self.chat_buff.get_end_iter(), text)
-		self.chat_view.scroll_to_iter(self.chat_buff.get_end_iter(), 0)
+		self.chat_view.scroll_to_mark(self.chat_buff.get_insert(), 0)
 
 	def __keypress_send_msg(self, widget, event=None):
 		if event.keyval == gtk.keysyms.Return:
@@ -98,7 +98,7 @@ class ChatGUI(object):
 		packets = self.elc.recv()
 		for packet in packets:
 			if packet and packet.type == ELNetFromServer.RAW_TEXT:
-				self.append_chat("\n%s" % strip_chars(packet.data).replace('\0', ''))
+				self.append_chat("\n%s" % strip_chars(packet.data[1:]))
 		return True
 
 	def destroy(self, widget, data=None):
