@@ -6,9 +6,10 @@ objects without prior knowledge of the instance at runtime.
 """
 import logging
 import struct
+import time
 
 from placid.el.common.actors import ELActor
-from placid.el.util.strings import strip_chars
+from placid.el.util.strings import strip_chars, split_str
 from placid.el.net.packets import ELPacket
 from placid.el.net.elconstants import ELNetFromServer, ELNetToServer
 
@@ -28,22 +29,66 @@ class MessageParser(object):
 		pass
 	
 class ELRawTextMessageParser(MessageParser):
+	"""Handles RAW_TEXT messages
+
+	Attributes:
+		commands - a dict of command name ('who', 'inv') and the 
+					respective callback to use
+	"""
+
+	def __init__(self, session):
+		super(ELRawTextMessageParser, self).__init__(session)
+		self.commands = {}
+		self.commands['WHO'] = self._do_who
+		self.commands['HI'] = self._do_hi
+		self.commands['TIME'] = self._do_time
+		self.commands['LICK'] = self._do_lick
 	
 	def parse(self, packet):
 		"""Parses a RAW_TEXT message"""
-		data = packet.data[2:]
-		log.debug("Data for packet %s: %s" % (packet.type, packet.data))
-		if not data.startswith("Volturin:"):
-			data = data[data.find("Volturin: ") + len("Volturin: "):]
-			if data.startswith("%s," % self.session.name[0].lower()) \
-				or data.startswith("%s," % self.session.name[0].upper()):
-				if data[data.find(",") + 1:].split()[0] == "who":
-					actors_str = ""
-					for actor in self.session.actors.values():
-						actors_str += "%s, " % actor
-
-					return [ELPacket(ELNetToServer.RAW_TEXT, actors_str[:-1])]
+		data = strip_chars(packet.data[2:])
+		log.debug("Data for RAW_TEXT packet %s: %s" % (packet.type, data))
+		name_str = "%s:" % self.session.name
+		if not data.startswith(name_str):
+			log.debug("Not a message from me! (%s)" % name_str)
+			log.debug("Found: %d" % (data.find(':') + 1))
+			person = data[:data.find(':')]
+			data = data[data.find(':') + 2:]
+			log.debug("is message for me: (%s) %s" % (data, data.startswith("%s," % name_str[0].lower())))
+			if data.startswith("%s," % name_str[0].lower()):
+				words = data[data.find(",") + 1:].split()
+				log.debug("Data; %s" % data)
+				log.debug("Words for commands: %s" % words)
+				if len(words) >= 1 and words[0].upper() in self.commands:
+					log.debug("Found command '%s', executing" % words[0].upper())
+					# data[1] is the params onwards to the command
+					packets = self.commands[words[0].upper()](person, words[1:])
+					return packets
 		return []
+	
+	def _do_who(self, person, params):
+		packets = []
+		actors_str = ""
+		for actor in self.session.actors.values():
+			actors_str += "%s, " % actor
+
+		actors_strs = split_str(actors_str)
+		for str in actors_strs:
+			packets.append(ELPacket(ELNetToServer.RAW_TEXT, str))
+
+		return packets
+	
+	def _do_hi(self, person, params):
+		return [ELPacket(ELNetToServer.RAW_TEXT, "Hi there, %s :D" % person)]
+
+	def _do_time(self, person, params):
+		return [ELPacket(ELNetToServer.RAW_TEXT, "%s: %s" % (person, time.asctime()))]
+	
+	def _do_lick(self, person, params):
+		if len(words) > 1:
+			return [ELPacket(ELNetToServer.RAW_TEXT, ":licks %s" % words[0])]
+		else:
+			return [ELPacket(ELNetToServer.RAW_TEXT, "...I'm not going to lick the air...")]
 
 class ELAddActorMessageParser(MessageParser):
 	def parse(self, packet):
@@ -73,9 +118,11 @@ class ELAddActorMessageParser(MessageParser):
 		actor.name = strip_chars(actor.name)
 
 		if ' ' in actor.name:
+			log.debug("Actor has a guild. Parsing from '%s'" % actor.name)
 			# split the name into playername and guild
-			actor.name = actor.name[:actor.name.find(' ')]
-			actor.guild = actor.name[actor.name.find(' '):]
+			tokens = actor.name.split()
+			actor.name = tokens[0]
+			actor.guild = tokens[1]
 
 		self.session.actors[actor.id] = actor
 
