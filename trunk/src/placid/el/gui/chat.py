@@ -2,14 +2,14 @@ import pygtk
 pygtk.require('2.0')
 import gtk
 import gobject
+import struct
 from random import random as rand
 
-from placid.el.net.elconstants import ELNetFromServer, ELNetToServer
+from placid.el.net.elconstants import ELConstants, ELNetFromServer, ELNetToServer
 from placid.el.net.packets import ELPacket
 from placid.el.util.strings import strip_chars
 
 class ChatGUI(object):
-
 	def __init__(self, elconnection):
 		self.elc = elconnection
 		if not self.elc.is_connected():
@@ -25,6 +25,7 @@ class ChatGUI(object):
 
 		# assign the fd of our elconnection to gtk
 		gobject.io_add_watch(self.elc.fileno(), gobject.IO_IN | gobject.IO_PRI, self.__process_packets)
+		gobject.io_add_watch(self.elc.fileno(), gobject.IO_ERR, self.__elc_error)
 		gobject.timeout_add(15000, self.__keep_alive)
 
 		self.chat_hbox = gtk.HBox(False, 0)
@@ -65,6 +66,9 @@ class ChatGUI(object):
 		self.window.show_all()
 		self.append_chat('Welcome to Pyela-Chat, part of the Pyela toolset. Visit pyela.googlecode.com for more information')
 		self.msg_txt.grab_focus()
+
+		# setup the channel list
+		self.channels = []
 		gtk.main()
 
 	def append_chat(self, text):
@@ -90,17 +94,43 @@ class ChatGUI(object):
 	def __keep_alive(self):
 		"""keeps self.elc alive by calling its keep_alive function.
 		This is called automatically every 15 seconds by the gobject API"""
-		self.elc.keep_alive
+		self.elc.keep_alive()
 		return True
+	
+	def __elc_error(self):
+		"""Called by gtk when an error with the socket occurs"""
+		pass
+
 
 	def __process_packets(self, widget, data=None):
 		self.elc.keep_alive()
 		packets = self.elc.recv()
 		for packet in packets:
-			if packet and packet.type == ELNetFromServer.RAW_TEXT:
-				self.append_chat("\n%s" % strip_chars(packet.data[1:]))
+			if packet.type == ELNetFromServer.RAW_TEXT:
+				if struct.unpack('<b', packet.data[0])[0] in \
+					(ELConstants.CHAT_CHANNEL1, ELConstants.CHAT_CHANNEL2, ELConstants.CHAT_CHANNEL3):
+					channel = int(struct.unpack('<b', packet.data[0])[0])
+					text = strip_chars(packet.data[1:])
+					self.append_chat("\n%s" % (text.replace(']', " @ %s]" % \
+						self.channels[int(channel - ELConstants.CHAT_CHANNEL1)].number)))
+				else:
+					self.append_chat("\n%s" % strip_chars(packet.data[1:]))
+			elif packet.type == ELNetFromServer.GET_ACTIVE_CHANNELS:
+				# active channel, c1, c2, c3
+				chans = struct.unpack('<biii', packet.data)
+				i = 0
+				active = chans[0]
+				for c in chans[1:]:
+					self.channels.append(Channel(c, i == active))
+					i += 1
 		return True
 
 	def destroy(self, widget, data=None):
 		gtk.main_quit()
 		return False
+
+
+class Channel(object):
+	def __init__(self, number, is_active):
+		self.number = number
+		self.is_active = is_active
