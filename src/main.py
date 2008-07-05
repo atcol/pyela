@@ -6,22 +6,12 @@ import sys
 
 from placid.el.net.connections import get_elconnection_by_config, ELConnection
 from placid.el.logic.managers import MultiConnectionManager
-from placid.el.logic.session import ELSession
+from placid.el.logic.session import ELSession, get_elsession_by_config
 from placid.el.net.packethandlers import ELTestPacketHandler
 
 connections = []
 
-# 18 secs for testing
-LAST_ASTRO_MAX_SECS = 60
-
-LAST_ASTRO_MAX_MINS = 1
-
-HEART_BEAT_MAX_SECS = 19
-
-POLL_TIMEOUT_MILLIS = HEART_BEAT_MAX_SECS * 1000
-
 # signal handlers
-
 def sig_cleanup(signal, frame):
 	log.info("Caught %s at frame %s, quitting" % (signal, frame))
 	log.debug("Closing connections: %s" % connections)
@@ -36,7 +26,7 @@ def main():
 	signal.signal(signal.SIGQUIT, sig_cleanup)
 	signal.signal(signal.SIGPIPE, signal.SIG_IGN)
 
-	sys_cfg = ConfigParser.ConfigParser()
+	sys_cfg = ConfigParser.ConfigParser()# system-wide settings
 	sys_cfg.read('system.ini')
 
 	for file in os.listdir('./bots'):
@@ -44,8 +34,7 @@ def main():
 			cfg = ConfigParser.ConfigParser()
 			cfg.read("bots/%s" % file)
 			con = get_elconnection_by_config(cfg)
-			session = ELSession(cfg)
-			con.packet_handler = ELTestPacketHandler(session)
+			con.packet_handler = ELTestPacketHandler(con.session)
 			connections.append(con)
 	
 	log.basicConfig(level=getattr(log, sys_cfg.get('logging', 'level').upper()), format="%(asctime)s %(name)s %(levelname)s: %(message)s", filename=sys_cfg.get('logging', 'filename'))
