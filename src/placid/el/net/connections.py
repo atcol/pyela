@@ -12,7 +12,7 @@ from placid.el.net.elconstants import ELNetToServer
 from placid.el.net.packets import ELPacket
 from placid.el.net.packethandlers import BasePacketHandler
 from placid.el.common.exceptions import ConnectionException
-from placid.el.logic.session import ELSession
+from placid.el.logic.session import ELSession, get_elsession_by_config
 
 CONNECTED, CONNECTING, DISCONNECTED = range(3)
 
@@ -91,7 +91,7 @@ class ELConnection(BaseConnection):
 		self.port = self.config.getint('login', 'port')
 		self.MAX_CON_TRIES = config.getint('actions', 'max_recon')
 		self.MAX_LAST_SEND_SECS = config.getint('actions', 'max_send_secs')
-		self.session = ELSession(config)
+		self.session = get_elsession_by_config(config)
 		self._inp = "" # input buffer, for incomplete messages
 	
 	def fileno(self):
