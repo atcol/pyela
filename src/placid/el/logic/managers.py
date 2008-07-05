@@ -26,8 +26,6 @@ POLL_TIMEOUT_MILLIS = HEART_BEAT_MAX_SECS * 1000
 
 class ConnectionManager(object):
 	"""A manager for a Connection object."""
-	def __init__(self):
-		pass
 
 	def __init__(self, connection):
 		self.connection = connection
@@ -49,8 +47,6 @@ class MultiConnectionManager(ConnectionManager):
 		connections - a list of placid.net.connections.BaseConnection or derivative
 					  to manage
 		config		- the instance of ConfigParser, passed to init
-		_opt		- the packet output buffer; leave it alone
-		_inp		- the packet input buffer; leave it alone
 		session		- the ELSession instance, representing the data
 					  for this connection
 	"""
@@ -75,11 +71,6 @@ class MultiConnectionManager(ConnectionManager):
 
 	def process(self):
 		"""Overrides super's process impl to govern all the connections """
-		#if not self.connection.is_connected():
-			#self.connection.connect()
-			#if self.config.get('actions', 'send_login'):
-				#self._opt.append(ELPacket(ELNetToServer.RAW_TEXT, self.session.get_login_messages()[0]))
-
 		self.__connect_all()
 
 		if len(self.connections) > 0:
@@ -88,9 +79,6 @@ class MultiConnectionManager(ConnectionManager):
 			raise ManagerException('Cannot register connections. None provided')
 
 		while len(self.connections) > 0:
-			#log.debug("Got %s from poll()" % p_opt)
-			#log.debug("Last packet diff: %d" % int(time.time() - self.connection.last_send))
-
 			poll_time = self.__calc_poll_time()
 			log.debug("Setting poll with timeout %d" % poll_time)
 			p_opt = self._p.poll(poll_time)
@@ -106,7 +94,7 @@ class MultiConnectionManager(ConnectionManager):
 				# process output queue??
 			else:
 				# 
-				# data received in a connection, find which
+				# data received in a connection
 				# get the connection poll is referring to
 
 				p_event = None
@@ -150,15 +138,14 @@ class MultiConnectionManager(ConnectionManager):
 		"""
 		poll_time = HEART_BEAT_MAX_SECS
 		for con in self.connections:
+			if int(time.time() - con.last_send) < 0:
+				poll_time = 0
+				break
 			this_pt = int(con.MAX_LAST_SEND_SECS - int(time.time() - con.last_send))
-			log.debug("Calc'd poll time for %s is %d" % (con, int(this_pt)))
+
 			if this_pt < poll_time and this_pt > 0 and poll_time > 0:
 				poll_time = this_pt
-			else:
-				poll_time = 20
-				break
-		if poll_time < 0:
-			poll_time = HEART_BEAT_MAX_SECS
+		log.debug("Calc'd poll time for %s is %d" % (con, int(poll_time)))
 
 		return int(poll_time * 1000)
 
