@@ -9,7 +9,7 @@ import struct
 import time
 
 from placid.el.common.actors import ELActor
-from placid.el.util.strings import strip_chars, split_str
+from placid.el.util.strings import strip_chars
 from placid.el.net.packets import ELPacket
 from placid.el.net.elconstants import ELNetFromServer, ELNetToServer
 
