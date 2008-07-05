@@ -7,6 +7,7 @@ import select
 from placid.el.net.connections import ELConnection
 from placid.el.net.elconstants import ELNetFromServer, ELNetToServer
 from placid.el.gui.chat import ChatGUI
+from placid.el.util.strings import strip_chars
 
 class LoginGUI(object):
 	
@@ -125,8 +126,12 @@ class LoginGUI(object):
 				if p_opt[0][1] == select.POLLIN or p_opt[0][1] == select.POLLPRI:# check we received data
 					packets = self.elc.recv()
 					for packet in packets:
-						if packet.type == ELNetFromServer.LOG_IN_NOT_OK or packet.type == ELNetFromServer.YOU_DONT_EXIST:
-							self.show_error('Incorrect username or password.')
+						if packet.type == ELNetFromServer.LOG_IN_NOT_OK:
+							self.show_error(strip_chars(packet.data))
+							self.elc.disconnect()
+							return False
+						elif packet.type == ELNetFromServer.YOU_DONT_EXIST:
+							self.show_error('Incorrect username.')
 							self.elc.disconnect()
 							return False
 						elif packet.type == ELNetFromServer.LOG_IN_OK:
