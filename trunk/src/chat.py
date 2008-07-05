@@ -45,19 +45,17 @@ def el_ini_exists():
 	
 def get_login_elini():
 	elini = open(elini_path)
+	USERNAME = ""
+	PASSWORD = ""
 	for line in elini.readlines():
 		if line.find("#username = ") != -1:
 			USERNAME = line.split('=')[1].replace('"', '').strip()
-			if USERNAME != '':
-				print "Global username set"
-			else:
+			if len(USERNAME) == 0:
 				print "Username not set in el.ini"
 				break
 		elif line.find("#password = ") != -1:
 			PASSWORD = line.split('=')[1].replace('"', '').strip()
-			if USERNAME != '':
-				print "Global password set"
-			else:
+			if len(PASSWORD) == 0:
 				print "Password not set in el.ini"
 				break
 	elini.close()
