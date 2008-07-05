@@ -96,6 +96,7 @@ class LoginGUI(object):
 		# add the boxes to the window
 		self.window.add(self.vbox)
 		self.window.show_all()
+		self.user_txt.grab_focus()
 		self.run()
 	
 	def login(self, widget, data=None):
@@ -124,7 +125,7 @@ class LoginGUI(object):
 				if p_opt[0][1] == select.POLLIN or p_opt[0][1] == select.POLLPRI:# check we received data
 					packets = self.elc.recv()
 					for packet in packets:
-						if packet.type == ELNetFromServer.LOG_IN_NOT_OK:
+						if packet.type == ELNetFromServer.LOG_IN_NOT_OK or packet.type == ELNetFromServer.YOU_DONT_EXIST:
 							self.show_error('Incorrect username or password.')
 							self.elc.disconnect()
 							return False
