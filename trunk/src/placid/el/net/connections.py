@@ -196,7 +196,6 @@ class ELConnection(BaseConnection):
 				header = struct.unpack('<BH', self._inp[:3])
 				msg_len = header[1]-1
 				if len(self._inp) >= msg_len+3:
-					print "yield %d %d" % header
 					yield ELPacket(header[0], self._inp[3:3+msg_len])
 					#Get rid of the message we just returned
 					self._inp = self._inp[3+msg_len:] 
