@@ -17,3 +17,6 @@ class ELPacket(Packet):
 
 	def unpack(self):
 		"""Unpacks the data into a readable form"""
+	
+	def __str__(self):
+		return "ELPacket: %s - %s" % (self.type, self.data)
