@@ -3,25 +3,26 @@
 
 import ConfigParser
 
+def get_elsession_by_config(config):
+	"""Load all relevant configuration and message values from the given
+	ConfigParser instance and construct an ELSession instance to return
+	"""
+	return ELSession(config.get('login', 'username'), \
+		config.get('login', 'password'), \
+		config.get('messages', 'login').split('|'), \
+		config.get('messages', 'logout').split('|'))
+
 class Session(object):
 	"""A basic session object"""
 
-	def __init__(self, config):
-		"""assign this session's config and load properties from the given
-		configuration file
+	def __init__(self, username, password, login_msgs=[], logout_msgs=[]):
 		"""
-		self.load_config(config)
-	
-	def load_config(self, config):
-		"""Load all relevant configuration and message values from the given
-		ConfigParser instance and reassign, or reload from self.config if no 
-		ConfigParser instance is given
+		Assign username, password and optional login and logout messages
 		"""
-		self.config = config
-		self.name = self.config.get('login', 'username')
-		self.password = self.config.get('login', 'password')
-		self.login_msgs = self.config.get('messages', 'login').split('|')
-		self.logout_msgs = self.config.get('messages', 'logout').split('|')
+		self.name = username
+		self.password = password
+		self.login_msgs = login_msgs
+		self.logout_msgs = logout_msgs
 	
 	def get_login_messages(self):
 		"""returns a list of strings from the config for all login messages"""
@@ -36,6 +37,9 @@ class ELSession(Session):
 	actors, ignores, channels etc
 	"""
 
-	def __init__(self, config):
-		super(ELSession, self).__init__(config)
+	def __init__(self, username, password, login_msgs=[], logout_msgs=[]):
+		super(ELSession, self).__init__(username, password, login_msgs=[], logout_msgs=[])
 		self.actors = {}
+	
+	def add_actor(self, actor):
+		self.actors.append(actor)
