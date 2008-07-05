@@ -64,6 +64,7 @@ class ChatGUI(object):
 		self.window.set_title("Pyela Chat - %s@%s:%s" % (self.elc.username, self.elc.host, self.elc.port))
 		self.window.show_all()
 		self.append_chat('Welcome to Pyela-Chat, part of the Pyela toolset. Visit pyela.googlecode.com for more information')
+		self.msg_txt.grab_focus()
 		gtk.main()
 
 	def append_chat(self, text):
