@@ -13,27 +13,31 @@ print "Loading properties from" , elini_path
 def main():
 	USERNAME = ""
 	PASSWORD = ""
+	HOST = 'game.eternal-lands.com'
+	PORT = 2001
+	elc = None
+
 	# check if el.ini is present
 	if el_ini_exists():
 		print "Found el.ini. Will parse username and password from it"
 		usr_pass = get_login_elini()
 		USERNAME = usr_pass[0]
 		PASSWORD = usr_pass[1]
-		print "%s, %s" % (USERNAME, PASSWORD)
+		# user may be set, but not pass
 
-	if len(USERNAME) == 0 and len(PASSWORD) == 0:
+	if len(USERNAME) == 0 or len(PASSWORD) == 0:
 		print "Login info. not available via el.ini. Showing Login GUI"
 		l = LoginGUI()
 		if not l.LOG_IN_OK:
 			print "Login failed"
 			sys.exit(1)
 		else:
-			USERNAME = l.elc.username
-			PASSWORD = l.elc.password
+			elc = l.elc
 	
 	# getting login info went OK
 	print "Connecting with username '%s' and password (length) %d" % (USERNAME, len(PASSWORD))
-	elc = ELConnection(USERNAME, PASSWORD, host='game.eternal-lands.com', port=2001)
+	if not elc:
+		elc = ELConnection(USERNAME, PASSWORD, host=HOST, port=PORT)
 	c = ChatGUI(elc)
 
 def el_ini_exists():
