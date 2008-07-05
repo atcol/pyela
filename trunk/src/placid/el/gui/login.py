@@ -1,36 +1,56 @@
 import pygtk
 pygtk.require('2.0')
 import gtk
+import time
+import select
 
 from placid.el.net.connections import ELConnection
+from placid.el.net.elconstants import ELNetFromServer, ELNetToServer
+from placid.el.gui.chat import ChatGUI
 
 class LoginGUI(object):
 	
-	def __init__(self):
+	def __init__(self, host='game.eternal-lands.com', port=2001):
+		self.host = host
+		self.port = port
+		self.LOG_IN_OK = False
 		self.__setup()
 		pass
 	
 	def __setup(self):
 		self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+		self.window.set_title('Pyela Chat - Login')
+		self.window.connect('destroy', self.destroy)
 		self.window.connect('delete_event', self.destroy)
 
 		# create the boxes
 		self.vbox = gtk.VBox(True, 0)
 		self.login_box = gtk.HBox(True, 0)
 		self.passwd_box = gtk.HBox(True, 0)
+		self.host_box = gtk.HBox(True, 0)
+		self.port_box = gtk.HBox(True, 0)
 		self.buttons_box = gtk.HBox(True, 0)
 		self.vbox.show()
 		self.login_box.show()
 		self.passwd_box.show()
+		self.host_box.show()
+		self.port_box.show()
 		self.buttons_box.show()
+		self.error_box = None
 
 		# create the labels
 		self.login_lbl = gtk.Label('Username:')
 		self.login_lbl.show()
 		self.passwd_lbl = gtk.Label('Password:')
 		self.passwd_lbl.show()
+		self.host_lbl = gtk.Label('Host:')
+		self.host_lbl.show()
+		self.port_lbl = gtk.Label('Port:')
+		self.port_lbl.show()
 		self.login_box.pack_start(self.login_lbl, False, False, 0)
 		self.passwd_box.pack_start(self.passwd_lbl, False, False, 0)
+		self.host_box.pack_start(self.host_lbl, False, False, 0)
+		self.port_box.pack_start(self.port_lbl, False, False, 0)
 
 		# create the input boxes
 		self.user_txt = gtk.Entry(max=15)
@@ -38,13 +58,26 @@ class LoginGUI(object):
 		self.passwd_txt = gtk.Entry(max=0)
 		self.passwd_txt.set_visibility(False)
 		self.passwd_txt.show()
+		self.host_txt = gtk.Entry(max=30)
+		self.host_txt.show()
+		self.host_txt.set_text('game.eternal-lands.com')
+		self.port_txt = gtk.Entry(max=5)
+		self.port_txt.set_text('2001')
+		self.port_txt.show()
 		self.login_box.pack_start(self.user_txt, False, False, 0)
 		self.passwd_box.pack_start(self.passwd_txt, False, False, 0)
+		self.host_box.pack_start(self.host_txt, False, False, 0)
+		self.port_box.pack_start(self.port_txt, False, False, 0)
+		self.passwd_txt.connect('key_press_event', self.keypress)
+		self.host_txt.connect('key_press_event', self.keypress)
+		self.port_txt.connect('key_press_event', self.keypress)
 
 		# create the buttons
 		self.login_btn = gtk.Button('Login')
+		self.login_btn.set_size_request(75, 40)
 		self.login_btn.connect('clicked', self.login)
 		self.cancel_btn = gtk.Button('Cancel')
+		self.cancel_btn.set_size_request(75, 40)
 		self.cancel_btn.connect('clicked', self.destroy)
 		self.login_btn.show()
 		self.cancel_btn.show()
@@ -56,22 +89,59 @@ class LoginGUI(object):
 		# add the hbox instances to the vbox
 		self.vbox.pack_start(self.login_box, False, False, 0)
 		self.vbox.pack_start(self.passwd_box, False, False, 0)
+		self.vbox.pack_start(self.host_box, False, False, 0)
+		self.vbox.pack_start(self.port_box, False, False, 0)
 		self.vbox.pack_start(self.buttons_box, False, False, 0)
 
 		# add the boxes to the window
 		self.window.add(self.vbox)
-
-		self.window.show()
+		self.window.show_all()
+		self.run()
 	
 	def login(self, widget, data=None):
 		"""Check the username & pass textboxes. If not empty, create a new ELConnection"""
+		print "Logging in"
 		if len(self.user_txt.get_text()) >= 3 and len(self.passwd_txt.get_text()) > 0:
-			self.elc = ELConnection(self.user_txt.get_text(), self.passwd_txt.get_text(), host='game.eternal-lands.com', port=2001)
-			self.elc.connect()
-			if not self.elc.is_connected():
-				self.show_error('Login failed!')
+			if self.__login_check(self.user_txt.get_text(), self.passwd_txt.get_text()):
+				self.LOG_IN_OK = True
+				self.window.hide()
+				self.destroy(None)
 		else:
 			self.show_error('Please enter a valid password and username')
+			self.LOG_IN_OK = False
+
+	def __login_check(self, user, passwd):
+		"""Login to the EL server and wait for LOG_IN_OK packet or otherwise.
+		If LOG"""
+		self.elc = ELConnection(self.user_txt.get_text(), self.passwd_txt.get_text(), self.host_txt.get_text(), int(self.port_txt.get_text()))
+		self.elc.connect()
+		poll = select.poll()
+		poll.register(self.elc, select.POLLIN | select.POLLPRI | select.POLLERR)
+		while True:
+			p_opt = poll.poll(5000)# poll for maximum 5 secs
+			print "poll: %s" % p_opt
+			if len(p_opt) != 0:
+				if p_opt[0][1] == select.POLLIN or p_opt[0][1] == select.POLLPRI:# check we received data
+					packets = self.elc.recv()
+					for packet in packets:
+						if packet.type == ELNetFromServer.LOG_IN_NOT_OK:
+							self.show_error('Incorrect username or password.')
+							self.elc.disconnect()
+							return False
+						elif packet.type == ELNetFromServer.LOG_IN_OK:
+							return True
+				else:
+					self.show_error("Error connecting. Check your username and password is correct and that you're connected to the internet")
+					return False
+			else:
+				self.show_error("Timeout occured whilst attempting to log in. Please check your internet connection")
+				return False
+			
+	def keypress(self, widget, event=None):
+		print "Keypress %s" % event
+		if event.keyval == gtk.keysyms.Return:
+			self.login(None, None)
+		return False
 
 	def destroy(self, widget, data=None):
 		print "Closing GUI"
@@ -80,15 +150,20 @@ class LoginGUI(object):
 	
 	def run(self):
 		gtk.main()
+		
+	def __create_error_box(self, msg):
+		self.error_box = gtk.HBox(True, 0)
+		self.error_box.show()
+		self.error_lbl = gtk.Label(msg)
+		self.error_lbl.show()
+		self.error_box.pack_start(self.error_lbl, False, False, 0)
+		self.vbox.pack_start(self.error_box, False, False, 0)
 	
 	def show_error(self, msg):
 		if self.error_box == None:
-			self.error_box = gtk.HBox(True, 0)
-			self.error_box.show()
-			self.error_lbl = gtk.Label(msg)
-			self.error_lbl.show()
-			self.error_box.pack_start(self.error_lbl, False, False, 0)
-			self.vbox.pack_start(self.error_box, False, False, 0)
-		else:
-			self.error_lbl.set_text(msg)
+			self.__create_error_box(msg)
+		self.error_lbl.set_text(msg)
+
+	def hide_error(self):
+		self.error_box.hide()
 
