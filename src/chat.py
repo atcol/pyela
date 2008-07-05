@@ -8,8 +8,6 @@ from placid.el.net.connections import ELConnection
 
 elini_path = os.environ['HOME'] + "/.elc/main/el.ini"
 
-print "Loading properties from" , elini_path
-
 def main():
 	USERNAME = ""
 	PASSWORD = ""
@@ -35,7 +33,6 @@ def main():
 			elc = l.elc
 	
 	# getting login info went OK
-	print "Connecting with username '%s' and password (length) %d" % (USERNAME, len(PASSWORD))
 	if not elc:
 		elc = ELConnection(USERNAME, PASSWORD, host=HOST, port=PORT)
 	c = ChatGUI(elc)
