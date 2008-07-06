@@ -55,6 +55,7 @@ class ChatGUI(gtk.Window):
 		# set-up the channel list tree view
 		self.channel_list = gtk.ListStore(gobject.TYPE_STRING)
 		self.channel_tree = gtk.TreeView(self.channel_list)
+		self.channel_tree.set_size_request(self.channel_tree.get_size_request()[0], 200)
 		self.channel_tree.set_reorderable(True)
 		self.channel_tree.show()
 		self.cell_ren = gtk.CellRendererText()
@@ -163,12 +164,14 @@ class ChatGUI(gtk.Window):
 			elif packet.type == ELNetFromServer.GET_ACTIVE_CHANNELS:
 				# active channel, c1, c2, c3
 				print "got active channels"
+				self.channel_list.clear()
 				chans = struct.unpack('<biii', packet.data)
 				i = 0
 				active = chans[0]
 				for c in chans[1:]:
-					self.channels.append(Channel(c, i == active))
-					self.channel_list.append(["%s" % c])
+					if c != 0:
+						self.channels.append(Channel(c, i == active))
+						self.channel_list.append(["%s" % c])
 					i += 1
 			elif packet.type == ELNetFromServer.LOG_IN_NOT_OK:
 				self.append_chat(strip_chars(packet.data))
