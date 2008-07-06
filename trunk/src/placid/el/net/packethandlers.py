@@ -7,7 +7,7 @@ import struct
 from placid.net.packethandlers import BasePacketHandler
 from placid.el.net.elconstants import ELNetFromServer, ELNetToServer
 from placid.el.net.packets import ELPacket
-from placid.el.net.parsers import ELRawTextMessageParser, ELAddActorMessageParser, ELRemoveActorMessageParser
+from placid.el.net.parsers import ELRawTextMessageParser, ELAddActorMessageParser, ELRemoveActorMessageParser, ELGetActiveChannelsMessageParser
 
 log = logging.getLogger('placid.el.net.packethandlers')
 
@@ -26,7 +26,7 @@ class ELTestPacketHandler(BasePacketHandler):
 		self.CALLBACKS[ELNetFromServer.RAW_TEXT] = ELRawTextMessageParser(self.session)
 		self.CALLBACKS[ELNetFromServer.ADD_NEW_ENHANCED_ACTOR] = ELAddActorMessageParser(self.session)
 		self.CALLBACKS[ELNetFromServer.REMOVE_ACTOR] = ELRemoveActorMessageParser(self.session)
-		#self.CALLBACKS[ELNetFromServer.ADD_NEW_ACTOR] = 'new_actor'
+		self.CALLBACKS[ELNetFromServer.GET_ACTIVE_CHANNELS] = ELGetActiveChannelsMessageParser(self.session)
 
 	def process_packets(self, packets):
 		for packet in packets:
