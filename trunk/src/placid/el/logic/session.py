@@ -40,6 +40,17 @@ class ELSession(Session):
 	def __init__(self, username, password, login_msgs=[], logout_msgs=[]):
 		super(ELSession, self).__init__(username, password, login_msgs=[], logout_msgs=[])
 		self.actors = {}
+		self.channels = []
 	
 	def add_actor(self, actor):
 		self.actors.append(actor)
+	
+	def get_active_channel(self):
+		"""return the active channel from self.channels"""
+		for ch in self.channels:
+			if ch.is_active:
+				return ch
+		return None
+	
+	def add_channel(self, channel):
+		self.channels.append(channel)
