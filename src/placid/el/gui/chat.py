@@ -8,8 +8,9 @@ from random import random as rand
 from placid.el.net.elconstants import ELConstants, ELNetFromServer, ELNetToServer
 from placid.el.net.packets import ELPacket
 from placid.el.util.strings import strip_chars
+from placid.el.net.channel import Channel
 
-class ChatGUI(object):
+class ChatGUI(gtk.Window):
 	def __init__(self, elconnection):
 		self.elc = elconnection
 		if not self.elc.is_connected():
@@ -17,21 +18,31 @@ class ChatGUI(object):
 		self.__setup_gui()
 	
 	def __setup_gui(self):
-		self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
-		self.window.connect('destroy', self.destroy)
-		self.window.connect('delete_event', self.destroy)
-		self.window.set_size_request(645, 510)
-		self.window.set_border_width(5)
+		#self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+		gtk.Window.__init__(self)
+		self.connect('destroy', self.destroy)
+		self.connect('delete_event', self.destroy)
+		self.set_size_request(645, 510)
+		self.set_border_width(5)
 
 		# assign the fd of our elconnection to gtk
 		gobject.io_add_watch(self.elc.fileno(), gobject.IO_IN | gobject.IO_PRI, self.__process_packets)
 		gobject.io_add_watch(self.elc.fileno(), gobject.IO_ERR, self.__elc_error)
 		gobject.timeout_add(15000, self.__keep_alive)
 
-		self.chat_hbox = gtk.HBox(False, 0)
-		self.chat_hbox.show()
+		self.input_hbox = gtk.HBox(False, 0)
+		self.input_hbox.show()
 		self.vbox = gtk.VBox(False, 0)
 		self.vbox.show()
+
+		self.chat_hbox = gtk.HBox(False, 0)
+		self.chat_hbox.show()
+
+		# set-up the scrollable window
+		self.scrolled_win = gtk.ScrolledWindow()
+		self.scrolled_win.set_size_request(560, 480)
+		self.scrolled_win.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+		self.scrolled_win.show()
 
 		# setup the chat text area
 		self.chat_buff = gtk.TextBuffer()
@@ -40,14 +51,24 @@ class ChatGUI(object):
 		self.chat_view.set_editable(False)
 		self.chat_view.set_wrap_mode(gtk.WRAP_WORD)
 		self.chat_view.show()
-		self.scrolled_win = gtk.ScrolledWindow()
-		self.scrolled_win.set_size_request(640, 480)
-		self.scrolled_win.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
 		self.scrolled_win.add(self.chat_view)
-		self.scrolled_win.show()
+		self.chat_hbox.pack_start(self.scrolled_win, False, False, 0)
+
+		# set-up the channel list tree view
+		self.channel_list = gtk.ListStore(gobject.TYPE_STRING)
+		self.channel_tree = gtk.TreeView(self.channel_list)
+		self.channel_tree.set_reorderable(True)
+		self.channel_tree.show()
+		self.cell_ren = gtk.CellRendererText()
+		self.cell_ren.set_property("visible", "TRUE")
+		self.channel_col = gtk.TreeViewColumn("Channels", self.cell_ren, markup=0)
+		self.channel_col.set_attributes(self.cell_ren, text=0)
+		self.channel_tree.append_column(self.channel_col)
+		self.chat_hbox.pack_end(self.channel_tree, False, False, 0)
+		self.vbox.pack_start(self.chat_hbox, True, True, 0)
 
 		# add the scrollable win to the vbox
-		self.vbox.pack_start(self.scrolled_win, False, True, 0)
+		self.vbox.pack_start(self.scrolled_win, False, False, 0)
 
 		# setup the chat input & send button
 		self.msg_txt = gtk.Entry(max=155)
@@ -57,13 +78,13 @@ class ChatGUI(object):
 		self.send_btn = gtk.Button('Send')
 		self.send_btn.connect('clicked', self.send_msg)
 		self.send_btn.show()
-		self.chat_hbox.pack_start(self.msg_txt, False, True, 0)# don't expand, but fill the hbox
-		self.chat_hbox.pack_start(self.send_btn, False, True, 0)
-		self.vbox.pack_start(self.chat_hbox, False, False, 0)
+		self.input_hbox.pack_start(self.msg_txt, True, True, 0)# don't expand, but fill the hbox
+		self.input_hbox.pack_start(self.send_btn, True, True, 0)
+		self.vbox.pack_start(self.input_hbox, False, False, 0)
 
-		self.window.add(self.vbox)
-		self.window.set_title("Pyela Chat - %s@%s:%s" % (self.elc.username, self.elc.host, self.elc.port))
-		self.window.show_all()
+		self.add(self.vbox)
+		self.set_title("%s@%s:%s - Pyela Chat" % (self.elc.username, self.elc.host, self.elc.port))
+		self.show_all()
 		self.append_chat('Welcome to Pyela-Chat, part of the Pyela toolset. Visit pyela.googlecode.com for more information')
 		self.msg_txt.grab_focus()
 
@@ -82,13 +103,14 @@ class ChatGUI(object):
 	
 	def send_msg(self, widget, data=None):
 		msg = self.msg_txt.get_text()
-		type = ELNetToServer.RAW_TEXT
-		if self.msg_txt.get_text().startswith('/'):
-			type = ELNetToServer.SEND_PM
-			msg = self.msg_txt.get_text()[1:]
+		if msg != '':
+			type = ELNetToServer.RAW_TEXT
+			if self.msg_txt.get_text().startswith('/'):
+				type = ELNetToServer.SEND_PM
+				msg = self.msg_txt.get_text()[1:]
 
-		self.elc.send(ELPacket(type, msg))
-		self.msg_txt.set_text("")
+			self.elc.send(ELPacket(type, msg))
+			self.msg_txt.set_text("")
 		return True
 	
 	def __keep_alive(self):
@@ -109,6 +131,7 @@ class ChatGUI(object):
 			if packet.type == ELNetFromServer.RAW_TEXT:
 				if struct.unpack('<b', packet.data[0])[0] in \
 					(ELConstants.CHAT_CHANNEL1, ELConstants.CHAT_CHANNEL2, ELConstants.CHAT_CHANNEL3):
+					print "got channel message"
 					channel = int(struct.unpack('<b', packet.data[0])[0])
 					text = strip_chars(packet.data[1:])
 					self.append_chat("\n%s" % (text.replace(']', " @ %s]" % \
@@ -117,11 +140,13 @@ class ChatGUI(object):
 					self.append_chat("\n%s" % strip_chars(packet.data[1:]))
 			elif packet.type == ELNetFromServer.GET_ACTIVE_CHANNELS:
 				# active channel, c1, c2, c3
+				print "got active channels"
 				chans = struct.unpack('<biii', packet.data)
 				i = 0
 				active = chans[0]
 				for c in chans[1:]:
 					self.channels.append(Channel(c, i == active))
+					self.channel_list.append(["%s" % c])
 					i += 1
 		return True
 
@@ -130,7 +155,4 @@ class ChatGUI(object):
 		return False
 
 
-class Channel(object):
-	def __init__(self, number, is_active):
-		self.number = number
-		self.is_active = is_active
+
