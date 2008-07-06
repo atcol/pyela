@@ -4,31 +4,29 @@ import gtk
 import gobject
 import struct
 from random import random as rand
+import sys
 
+from placid.el.net.connections import ELConnection
 from placid.el.net.elconstants import ELConstants, ELNetFromServer, ELNetToServer
 from placid.el.net.packets import ELPacket
 from placid.el.util.strings import strip_chars
 from placid.el.net.channel import Channel
+from placid.el.gui.login import LoginGUI
 
 class ChatGUI(gtk.Window):
-	def __init__(self, elconnection):
-		self.elc = elconnection
-		if not self.elc.is_connected():
-			self.elc.connect()
+	def __init__(self):
 		self.__setup_gui()
 	
 	def __setup_gui(self):
 		#self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+	
+		self.elc = None
+
 		gtk.Window.__init__(self)
 		self.connect('destroy', self.destroy)
 		self.connect('delete_event', self.destroy)
 		self.set_size_request(645, 510)
 		self.set_border_width(5)
-
-		# assign the fd of our elconnection to gtk
-		gobject.io_add_watch(self.elc.fileno(), gobject.IO_IN | gobject.IO_PRI, self.__process_packets)
-		gobject.io_add_watch(self.elc.fileno(), gobject.IO_ERR, self.__elc_error)
-		gobject.timeout_add(15000, self.__keep_alive)
 
 		self.input_hbox = gtk.HBox(False, 0)
 		self.input_hbox.show()
@@ -82,6 +80,14 @@ class ChatGUI(gtk.Window):
 		self.input_hbox.pack_start(self.send_btn, True, True, 0)
 		self.vbox.pack_start(self.input_hbox, False, False, 0)
 
+		# show the login gui to get the user credentials
+		self.do_login()
+
+		# assign the fd of our elconnection to gtk
+		gobject.io_add_watch(self.elc.fileno(), gobject.IO_IN | gobject.IO_PRI, self.__process_packets)
+		gobject.io_add_watch(self.elc.fileno(), gobject.IO_ERR, self.__elc_error)
+		gobject.timeout_add(15000, self.__keep_alive)
+
 		self.add(self.vbox)
 		self.set_title("%s@%s:%s - Pyela Chat" % (self.elc.username, self.elc.host, self.elc.port))
 		self.show_all()
@@ -91,6 +97,22 @@ class ChatGUI(gtk.Window):
 		# setup the channel list
 		self.channels = []
 		gtk.main()
+
+	def do_login(self):
+		l = LoginGUI(title="Login - Pyela Chat")
+		response = l.run()
+
+		if response == 0:
+			# login crendials entered
+			#self.elc = ELConnection(l.user_txt.get_text(), l.
+			print "Login response received"
+			self.elc = ELConnection(l.user_txt.get_text(), l.passwd_txt.get_text(), l.host_txt.get_text(), int(l.port_txt.get_text()))
+			self.elc.connect()
+			l.destroy()
+			print "elc created: %s" % self.elc
+		elif response == 1:
+			# quit
+			sys.exit(0)
 
 	def append_chat(self, text):
 		self.chat_buff.insert(self.chat_buff.get_end_iter(), text)
@@ -108,7 +130,7 @@ class ChatGUI(gtk.Window):
 			if self.msg_txt.get_text().startswith('/'):
 				type = ELNetToServer.SEND_PM
 				msg = self.msg_txt.get_text()[1:]
-
+				
 			self.elc.send(ELPacket(type, msg))
 			self.msg_txt.set_text("")
 		return True
@@ -121,8 +143,8 @@ class ChatGUI(gtk.Window):
 	
 	def __elc_error(self):
 		"""Called by gtk when an error with the socket occurs"""
-		pass
-
+		self.append_chat("A networking error occured. Login again.")
+		self.do_login()
 
 	def __process_packets(self, widget, data=None):
 		self.elc.keep_alive()
@@ -148,11 +170,19 @@ class ChatGUI(gtk.Window):
 					self.channels.append(Channel(c, i == active))
 					self.channel_list.append(["%s" % c])
 					i += 1
+			elif packet.type == ELNetFromServer.LOG_IN_NOT_OK:
+				self.append_chat(strip_chars(packet.data))
+				self.elc.disconnect()
+				self.do_login()
+			elif packet.type == ELNetFromServer.YOU_DONT_EXIST:
+				self.append_chat('Incorrect username.')
+				self.elc.disconnect()
+				self.do_login()
+			#elif packet.type == ELNetFromServer.LOG_IN_OK:
+				#return True
 		return True
 
 	def destroy(self, widget, data=None):
 		gtk.main_quit()
 		return False
-
-
 
