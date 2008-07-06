@@ -9,9 +9,10 @@ import struct
 import time
 
 from placid.el.common.actors import ELActor
-from placid.el.util.strings import strip_chars
+from placid.el.util.strings import strip_chars, split_str
 from placid.el.net.packets import ELPacket
 from placid.el.net.elconstants import ELNetFromServer, ELNetToServer
+from placid.el.net.channel import Channel
 
 log = logging.getLogger('placid.el.net.parsers')
 
@@ -72,7 +73,7 @@ class ELRawTextMessageParser(MessageParser):
 		for actor in self.session.actors.values():
 			actors_str += "%s, " % actor
 
-		actors_strs = split_str(actors_str)
+		actors_strs = split_str(actors_str, 157) 
 		for str in actors_strs:
 			packets.append(ELPacket(ELNetToServer.RAW_TEXT, str))
 
@@ -139,3 +140,13 @@ class ELRemoveActorMessageParser(MessageParser):
 		log.debug("Actors: %s" % self.session.actors)
 		if actor_id in self.session.actors:
 			del self.session.actors[actor_id]
+
+class ELGetActiveChannelsMessageParser(MessageParser):
+	"""parse the GET_ACTIVE_CHANNELS message"""
+	def parse(self, packet):
+		chans = struct.unpack('<biii', packet.data)
+		i = 0
+		active = chans[0]
+		for c in chans[1:]:
+			self.session.channels.append(Channel(c, i == active))
+			i += 1
