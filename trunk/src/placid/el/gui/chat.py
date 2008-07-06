@@ -64,10 +64,7 @@ class ChatGUI(gtk.Window):
 		self.channel_col.set_attributes(self.cell_ren, text=0)
 		self.channel_tree.append_column(self.channel_col)
 		self.chat_hbox.pack_end(self.channel_tree, False, False, 0)
-		self.vbox.pack_start(self.chat_hbox, True, True, 0)
-
-		# add the scrollable win to the vbox
-		self.vbox.pack_start(self.scrolled_win, False, False, 0)
+		self.vbox.pack_start(self.chat_hbox, False, False, 0)
 
 		# setup the chat input & send button
 		self.msg_txt = gtk.Entry(max=155)
@@ -106,11 +103,9 @@ class ChatGUI(gtk.Window):
 		if response == 0:
 			# login crendials entered
 			#self.elc = ELConnection(l.user_txt.get_text(), l.
-			print "Login response received"
 			self.elc = ELConnection(l.user_txt.get_text(), l.passwd_txt.get_text(), l.host_txt.get_text(), int(l.port_txt.get_text()))
 			self.elc.connect()
 			l.destroy()
-			print "elc created: %s" % self.elc
 		elif response == 1:
 			# quit
 			sys.exit(0)
@@ -154,7 +149,6 @@ class ChatGUI(gtk.Window):
 			if packet.type == ELNetFromServer.RAW_TEXT:
 				if struct.unpack('<b', packet.data[0])[0] in \
 					(ELConstants.CHAT_CHANNEL1, ELConstants.CHAT_CHANNEL2, ELConstants.CHAT_CHANNEL3):
-					print "got channel message"
 					channel = int(struct.unpack('<b', packet.data[0])[0])
 					text = strip_chars(packet.data[1:])
 					self.append_chat("\n%s" % (text.replace(']', " @ %s]" % \
@@ -163,7 +157,6 @@ class ChatGUI(gtk.Window):
 					self.append_chat("\n%s" % strip_chars(packet.data[1:]))
 			elif packet.type == ELNetFromServer.GET_ACTIVE_CHANNELS:
 				# active channel, c1, c2, c3
-				print "got active channels"
 				self.channel_list.clear()
 				chans = struct.unpack('<biii', packet.data)
 				i = 0
