@@ -1,1 +1,1 @@
-all = ["elconnection", "elconstants", "packets", "packethandlers", "parsers"]
+all = ["elconnection", "elconstants", "packets", "packethandlers", "parsers", "channel"]
