@@ -11,24 +11,14 @@ from placid.el.util.strings import strip_chars
 class LoginGUI(gtk.Dialog):
 	"""A simple login GUI that acts as a dialog window of a parent"""
 	
-	#def __init__(self, host='game.eternal-lands.com', port=2001):
-		#self.host = host
-		#self.port = port
-		#self.LOG_IN_OK = False
-		#self.__setup()
-		#pass
-#	self
-	
 	def __init__(self, title=None, parent=None, flags=0, buttons=None):
 		super(LoginGUI, self).__init__(title, parent, flags, buttons)
 		self.__setup()
 	
 	def __setup(self):
-		#gtk.Dialog.__init__(self)
-		#self.set_title('Pyela Chat - Login')
 		self.set_position(gtk.WIN_POS_CENTER_ON_PARENT)
-		self.connect('destroy', self.destroy)
-		self.connect('delete_event', self.destroy)
+		#self.connect('destroy', self.destroy)
+		#self.connect('delete_event', self.destroy)
 
 		# create the boxes
 		self.v_box = gtk.VBox(True, 0)
@@ -92,6 +82,5 @@ class LoginGUI(gtk.Dialog):
 		self.add_button("Cancel", 1)
 
 		# add the boxes to the window
-		#self.add(self.v_box)
 		self.show_all()
 		self.user_txt.grab_focus()
