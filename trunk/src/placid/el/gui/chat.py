@@ -15,9 +15,11 @@ from placid.el.gui.login import LoginGUI
 
 class ChatGUI(gtk.Window):
 	def __init__(self):
-		self.__setup_gui()
 		self.msg_buff = [] # list of messages, for CTRL+UP/UP and DOWN
 		self.msgb_idx = 0
+		self.last_key = None # for // name completion
+		self.last_pm_to = ""
+		self.__setup_gui()
 	
 	def __setup_gui(self):
 		self.elc = None
@@ -52,7 +54,10 @@ class ChatGUI(gtk.Window):
 		self.scrolled_win.add(self.chat_view)
 		self.chat_hbox.pack_start(self.scrolled_win, False, False, 0)
 
-		# set-up the channel & buddy list vbox
+		# set-up the channel & buddy list vbox and the buddy list scroll win
+		self.blist_scrolled_win = gtk.ScrolledWindow()
+		self.blist_scrolled_win.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+		self.blist_scrolled_win.show()
 		self.tool_vbox = gtk.VBox(False, 0)
 
 		# set-up the channel list tree view
@@ -70,13 +75,15 @@ class ChatGUI(gtk.Window):
 		# set-up the buddy list tree view
 		self.buddy_list = gtk.ListStore(gobject.TYPE_STRING)
 		self.buddy_tree = gtk.TreeView(self.buddy_list)
+		self.buddy_tree.connect('row-activated', self.__buddy_list_dclick)
 		self.buddy_tree.show()
 		self.buddy_cell_ren = gtk.CellRendererText()
 		self.buddy_cell_ren.set_property("visible", "TRUE")
 		self.buddy_col = gtk.TreeViewColumn("Buddies", self.buddy_cell_ren, markup=0)
 		self.buddy_tree.append_column(self.buddy_col)
+		self.blist_scrolled_win.add(self.buddy_tree)
 		self.tool_vbox.pack_start(self.channel_tree, False, False, 0)
-		self.tool_vbox.pack_start(self.buddy_tree, False, False, 0)
+		self.tool_vbox.pack_start(self.blist_scrolled_win, True, True, 0)
 
 		# add the chat & tool vbox to the chat hbox o,0
 		self.vbox.pack_start(self.chat_hbox, False, False, 0)
@@ -134,7 +141,15 @@ class ChatGUI(gtk.Window):
 	def __keypress(self, widget, event=None):
 		if event.keyval == gtk.keysyms.Return:
 			self.send_msg(None, None)
-			self.msg_buff.append(msg)
+			self.msg_buff.append(self.msg_txt.get_text())
+		elif event.keyval == gtk.keysyms.uparrow:
+			if self.msgb_idx > 0 and self.msgb_idx < len(self.msg_buff):
+				self.msgb_idx -= 1
+				self.msg_txt.set_text(self.msg_buff[self.msgb_idx])
+		elif event.keyval == gtk.keysyms.downarrow:
+			if self.msgb_idx < len(self.msg_buff):
+				self.msgb_idx += 1
+				self.msg_txt.set_text(self.msg_buff[self.msgb_idx])
 		return False
 	
 	def send_msg(self, widget, data=None):
@@ -160,6 +175,19 @@ class ChatGUI(gtk.Window):
 		self.append_chat("A networking error occured. Login again.")
 		self.elc.disconnect()
 		self.do_login()
+
+	def __buddy_list_dclick(self, buddy_tree, path, col, data=None):
+		"""User double-clicked a row in the buddy list treeview"""
+		# add /[name] if self.msg_txt is empty, otherwise append the name
+		iter = self.buddy_list.get_iter(path)
+		buddy = self.buddy_list.get_value(iter, 0)
+		if self.msg_txt.get_text() == "":
+			# add /[name]
+			self.msg_txt.set_text("/%s " % buddy)
+		else:
+			self.msg_txt.set_text("%s %s" % (self.msg_txt.get_text(), buddy))
+		self.msg_txt.grab_focus()
+
 
 	def __process_packets(self, widget, data=None):
 		self.elc.keep_alive()
@@ -205,15 +233,21 @@ class ChatGUI(gtk.Window):
 				self.do_login()
 		return True
 	
-	def find_buddy(self, buddy):
-		"""Return the iterator referencing buddy, or None if buddy is not in the buddy_list"""
+	def find_buddy_row(self, buddy):
+		"""Get the gtk.Row where buddy is"""
 		if not buddy:
 			return None
 		for row in self.buddy_list:
 			if row[0].upper() == buddy.upper():
-				return row.iter
+				return row
 		return None
-		
+	
+	def find_buddy(self, buddy):
+		"""Return the iterator referencing buddy, or None if buddy is not in the buddy_list"""
+		if buddy:
+			return self.find_buddy_row(buddy).iter
+		else:
+			return None
 
 	def destroy(self, widget, data=None):
 		gtk.main_quit()
