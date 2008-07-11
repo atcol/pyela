@@ -16,10 +16,10 @@ from placid.el.gui.login import LoginGUI
 class ChatGUI(gtk.Window):
 	def __init__(self):
 		self.__setup_gui()
+		self.msg_buff = [] # list of messages, for CTRL+UP/UP and DOWN
+		self.msgb_idx = 0
 	
 	def __setup_gui(self):
-		#self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
-	
 		self.elc = None
 
 		gtk.Window.__init__(self)
@@ -52,10 +52,13 @@ class ChatGUI(gtk.Window):
 		self.scrolled_win.add(self.chat_view)
 		self.chat_hbox.pack_start(self.scrolled_win, False, False, 0)
 
+		# set-up the channel & buddy list vbox
+		self.tool_vbox = gtk.VBox(False, 0)
+
 		# set-up the channel list tree view
 		self.channel_list = gtk.ListStore(gobject.TYPE_STRING)
 		self.channel_tree = gtk.TreeView(self.channel_list)
-		self.channel_tree.set_size_request(self.channel_tree.get_size_request()[0], 200)
+		self.channel_tree.set_size_request(self.channel_tree.get_size_request()[0], 85)
 		self.channel_tree.set_reorderable(True)
 		self.channel_tree.show()
 		self.cell_ren = gtk.CellRendererText()
@@ -63,13 +66,26 @@ class ChatGUI(gtk.Window):
 		self.channel_col = gtk.TreeViewColumn("Channels", self.cell_ren, markup=0)
 		self.channel_col.set_attributes(self.cell_ren, text=0)
 		self.channel_tree.append_column(self.channel_col)
-		self.chat_hbox.pack_end(self.channel_tree, False, False, 0)
+
+		# set-up the buddy list tree view
+		self.buddy_list = gtk.ListStore(gobject.TYPE_STRING)
+		self.buddy_tree = gtk.TreeView(self.buddy_list)
+		self.buddy_tree.show()
+		self.buddy_cell_ren = gtk.CellRendererText()
+		self.buddy_cell_ren.set_property("visible", "TRUE")
+		self.buddy_col = gtk.TreeViewColumn("Buddies", self.buddy_cell_ren, markup=0)
+		self.buddy_tree.append_column(self.buddy_col)
+		self.tool_vbox.pack_start(self.channel_tree, False, False, 0)
+		self.tool_vbox.pack_start(self.buddy_tree, False, False, 0)
+
+		# add the chat & tool vbox to the chat hbox o,0
 		self.vbox.pack_start(self.chat_hbox, False, False, 0)
+		self.chat_hbox.pack_end(self.tool_vbox, False, False, 0)
 
 		# setup the chat input & send button
 		self.msg_txt = gtk.Entry(max=155)
 		self.msg_txt.set_size_request(600, self.msg_txt.get_size_request()[1])
-		self.msg_txt.connect('key_press_event', self.__keypress_send_msg)
+		self.msg_txt.connect('key_press_event', self.__keypress)
 		self.msg_txt.show()
 		self.send_btn = gtk.Button('Send')
 		self.send_btn.connect('clicked', self.send_msg)
@@ -114,9 +130,11 @@ class ChatGUI(gtk.Window):
 		self.chat_buff.insert(self.chat_buff.get_end_iter(), text)
 		self.chat_view.scroll_to_mark(self.chat_buff.get_insert(), 0)
 
-	def __keypress_send_msg(self, widget, event=None):
+
+	def __keypress(self, widget, event=None):
 		if event.keyval == gtk.keysyms.Return:
 			self.send_msg(None, None)
+			self.msg_buff.append(msg)
 		return False
 	
 	def send_msg(self, widget, data=None):
@@ -140,6 +158,7 @@ class ChatGUI(gtk.Window):
 	def __elc_error(self):
 		"""Called by gtk when an error with the socket occurs"""
 		self.append_chat("A networking error occured. Login again.")
+		self.elc.disconnect()
 		self.do_login()
 
 	def __process_packets(self, widget, data=None):
@@ -166,6 +185,16 @@ class ChatGUI(gtk.Window):
 						self.channels.append(Channel(c, i == active))
 						self.channel_list.append(["%s" % c])
 					i += 1
+			elif packet.type == ELNetFromServer.BUDDY_EVENT:
+				event = ord(packet.data[0])# 1 is online, 0 offline
+				if event == 1:
+					buddy = str(strip_chars(packet.data[2:]))
+					self.append_chat("\n%s logged in" % buddy)
+					self.buddy_list.append([buddy])
+				else:
+					buddy = str(strip_chars(packet.data[1:]))
+					self.append_chat("\n%s logged off" % buddy)
+					self.buddy_list.remove(self.find_buddy(buddy))
 			elif packet.type == ELNetFromServer.LOG_IN_NOT_OK:
 				self.append_chat(strip_chars(packet.data))
 				self.elc.disconnect()
@@ -174,9 +203,17 @@ class ChatGUI(gtk.Window):
 				self.append_chat('Incorrect username.')
 				self.elc.disconnect()
 				self.do_login()
-			#elif packet.type == ELNetFromServer.LOG_IN_OK:
-				#return True
 		return True
+	
+	def find_buddy(self, buddy):
+		"""Return the iterator referencing buddy, or None if buddy is not in the buddy_list"""
+		if not buddy:
+			return None
+		for row in self.buddy_list:
+			if row[0].upper() == buddy.upper():
+				return row.iter
+		return None
+		
 
 	def destroy(self, widget, data=None):
 		gtk.main_quit()
