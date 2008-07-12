@@ -204,8 +204,7 @@ class ELConnection(BaseConnection):
 					return
 		self._inp += self.socket.recv(length)
 		for packet in parse_message():
-			if packet:
-				packets.append(packet)
+			packets.append(packet)
 		return packets
 
 	def __set_last_send(self, t):
