@@ -39,6 +39,7 @@ class Session(object):
 		self.password = password
 		self.login_msgs = login_msgs
 		self.logout_msgs = logout_msgs
+		self.msg_buf = []# global messages
 	
 	def get_login_messages(self):
 		"""returns a list of strings from the config for all login messages"""
@@ -57,6 +58,7 @@ class ELSession(Session):
 		super(ELSession, self).__init__(username, password, login_msgs=[], logout_msgs=[])
 		self.actors = {}
 		self.channels = []
+		self.buddies = []
 	
 	def add_actor(self, actor):
 		self.actors.append(actor)
