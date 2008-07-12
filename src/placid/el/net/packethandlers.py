@@ -48,6 +48,7 @@ class BaseELPacketHandler(BasePacketHandler):
 				opt_packets = self.CALLBACKS[packet.type].parse(packet)
 				if opt_packets and len(opt_packets) > 0:
 					self._opt.extend(opt_packets)
+		return []
 
 class ELTestPacketHandler(BaseELPacketHandler):
 	"""A derivative of BasePacketHandler that watches for RAW_TEXT packets 
@@ -79,3 +80,8 @@ class ChatGUIPacketHandler(BaseELPacketHandler):
 		self.CALLBACKS[ELNetFromServer.REMOVE_ACTOR] = ELRemoveActorMessageParser(self.session)
 		self.CALLBACKS[ELNetFromServer.GET_ACTIVE_CHANNELS] = ELGetActiveChannelsMessageParser(self.session)
 		self.CALLBACKS[ELNetFromServer.BUDDY_EVENT] = ELBuddyEventMessageParser(self.session)
+	
+	def process_packets(self, packets):
+		super(ChatGUIPacketHandler, self).process_packets(packets)
+		# create event objects if any of the packets match 
+		# relevant criteria

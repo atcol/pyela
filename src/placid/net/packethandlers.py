@@ -33,7 +33,9 @@ class BasePacketHandler(object):
 		
 	def process_packets(self, packets):
 		"""Reads the packets in packets and
-		places responses in the output queue
+		places responses in the output queue.
+		Depending on the packets,
+		a list of Event objects may be returned.
 		"""
 		pass
 
