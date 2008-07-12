@@ -115,7 +115,7 @@ class ChatGUI(gtk.Window):
 		self.send_btn.show()
 		self.input_hbox.pack_start(self.msg_txt, True, True, 0)# don't expand, but fill the hbox
 		self.input_hbox.pack_start(self.send_btn, True, True, 0)
-		self.vbox.pack_start(self.input_hbox, False, False, 0)
+		self.vbox.pack_end(self.input_hbox, False, False, 0)
 
 		# show the login gui to get the user credentials
 		self.do_login()
