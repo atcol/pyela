@@ -44,8 +44,19 @@ class MessageParser(object):
 		instances (or derivatives) ready for output (if any)
 		"""
 		pass
+
+class GUIRawTextMessageParser(MessageParser):
+	def parse(self, packet):
+		if struct.unpack('<b', packet.data[0])[0] in \
+			(ELConstants.CHAT_CHANNEL1, ELConstants.CHAT_CHANNEL2, ELConstants.CHAT_CHANNEL3):
+			channel = int(struct.unpack('<b', packet.data[0])[0])
+			text = strip_chars(packet.data[1:])
+			self.session.msg_buf.extend(["\n%s" % (text.replace(']', " @ %s]" % \
+				self.session.channels[int(channel - ELConstants.CHAT_CHANNEL1)].number))])
+		else:
+			self.session.msg_buf.extend(["\n%s" % strip_chars(packet.data[1:])])
 	
-class ELRawTextMessageParser(MessageParser):
+class BotRawTextMessageParser(MessageParser):
 	"""Handles RAW_TEXT messages
 
 	Attributes:
@@ -180,6 +191,7 @@ class ELRemoveActorMessageParser(MessageParser):
 		for actor_id in self._get_ids(packet.data):
 			if actor_id in self.session.actors:
 				del self.session.actors[actor_id]
+		return []
 
 class ELAddActorCommandParser(MessageParser):
 	def _get_commands(data):
@@ -194,6 +206,7 @@ class ELAddActorCommandParser(MessageParser):
 		for actor_id, command in self._get_commands(packet.data):
 			if actor_id in self.session.actors:
 				self.session.actors[actor_id].handle_command(command)
+		return []
 
 class ELGetActiveChannelsMessageParser(MessageParser):
 	"""parse the GET_ACTIVE_CHANNELS message"""
@@ -204,4 +217,17 @@ class ELGetActiveChannelsMessageParser(MessageParser):
 		for c in chans[1:]:
 			self.session.channels.append(Channel(c, i == active))
 			i += 1
+		return []
 
+class ELBuddyEventMessageParser(MessageParser):
+	"""Parse the BUDDY_EVENT message"""
+
+	def parse(self, packet):
+		event = ord(packet.data[0])# 1 is online, 0 offline
+		if event == 1:
+			buddy = str(strip_chars(packet.data[2:]))
+			self.session.buddies.append(buddy)
+		else:
+			buddy = str(strip_chars(packet.data[1:]))
+			self.session.buddies.remove(buddy)
+		return []

@@ -24,6 +24,8 @@ import sys
 
 from placid.el.net.connections import ELConnection
 from placid.el.net.elconstants import ELConstants, ELNetFromServer, ELNetToServer
+from placid.el.net.packethandlers import ChatGUIPacketHandler
+from placid.el.logic.session import ELSession
 from placid.el.net.packets import ELPacket
 from placid.el.util.strings import strip_chars
 from placid.el.net.channel import Channel
@@ -87,7 +89,7 @@ class ChatGUI(gtk.Window):
 		self.add(self.vbox)
 		self.set_title("%s@%s:%s - Pyela Chat" % (self.elc.username, self.elc.host, self.elc.port))
 		self.show_all()
-		self.append_chat('Welcome to Pyela-Chat, part of the Pyela toolset. Visit pyela.googlecode.com for more information')
+		self.append_chat(['Welcome to Pyela-Chat, part of the Pyela toolset. Visit pyela.googlecode.com for more information'])
 		self.msg_txt.grab_focus()
 
 		# setup the channel list
@@ -101,16 +103,18 @@ class ChatGUI(gtk.Window):
 		if response == 0:
 			# login crendials entered
 			self.elc = ELConnection(l.user_txt.get_text(), l.passwd_txt.get_text(), l.host_txt.get_text(), int(l.port_txt.get_text()))
+			self.elc.session = ELSession(self.elc.username, self.elc.password)
+			self.elc.packet_handler = ChatGUIPacketHandler(self.elc.session)
 			self.elc.connect()
 			l.destroy()
 		else:
 			# quit
 			sys.exit(0)
 
-	def append_chat(self, text):
-		self.chat_area.chat_buff.insert(self.chat_area.chat_buff.get_end_iter(), text)
+	def append_chat(self, msgs):
+		for msg in msgs:
+			self.chat_area.chat_buff.insert(self.chat_area.chat_buff.get_end_iter(), msg)
 		self.chat_area.chat_view.scroll_to_mark(self.chat_area.chat_buff.get_insert(), 0)
-
 
 	def __keypress(self, widget, event=None):
 		if event.keyval == gtk.keysyms.Return:
@@ -146,7 +150,7 @@ class ChatGUI(gtk.Window):
 	
 	def __elc_error(self):
 		"""Called by gtk when an error with the socket occurs"""
-		self.append_chat("A networking error occured. Login again.")
+		self.append_chat(["A networking error occured. Login again."])
 		self.elc.disconnect()
 		self.do_login()
 
@@ -175,43 +179,26 @@ class ChatGUI(gtk.Window):
 	def __process_packets(self, widget, data=None):
 		self.elc.keep_alive()
 		packets = self.elc.recv()
-		for packet in packets:
+		self.elc.process_packets(packets)
+		for packet in packets:# act on the packets if need be
 			if packet.type == ELNetFromServer.RAW_TEXT:
-				if struct.unpack('<b', packet.data[0])[0] in \
-					(ELConstants.CHAT_CHANNEL1, ELConstants.CHAT_CHANNEL2, ELConstants.CHAT_CHANNEL3):
-					channel = int(struct.unpack('<b', packet.data[0])[0])
-					text = strip_chars(packet.data[1:])
-					self.append_chat("\n%s" % (text.replace(']', " @ %s]" % \
-						self.channels[int(channel - ELConstants.CHAT_CHANNEL1)].number)))
-				else:
-					self.append_chat("\n%s" % strip_chars(packet.data[1:]))
+				self.append_chat(self.elc.session.msg_buf)
+				del self.elc.session.msg_buf[:]
 			elif packet.type == ELNetFromServer.GET_ACTIVE_CHANNELS:
 				# active channel, c1, c2, c3
 				self.tool_vbox.channel_list.clear()
-				chans = struct.unpack('<biii', packet.data)
-				i = 0
-				active = chans[0]
-				for c in chans[1:]:
-					if c != 0:
-						self.channels.append(Channel(c, i == active))
-						self.tool_vbox.channel_list.append(["%s" % c])
-					i += 1
+				for chan in self.elc.session.channels:
+					self.tool_vbox.channel_list.append(["%s" % chan.number])
 			elif packet.type == ELNetFromServer.BUDDY_EVENT:
-				event = ord(packet.data[0])# 1 is online, 0 offline
-				if event == 1:
-					buddy = str(strip_chars(packet.data[2:]))
-					self.append_chat("\n%s logged in" % buddy)
+				self.tool_vbox.buddy_list.clear()
+				for buddy in self.elc.session.buddies:
 					self.tool_vbox.buddy_list.append([buddy])
-				else:
-					buddy = str(strip_chars(packet.data[1:]))
-					self.append_chat("\n%s logged off" % buddy)
-					self.tool_vbox.buddy_list.remove(self.find_buddy(buddy))
 			elif packet.type == ELNetFromServer.LOG_IN_NOT_OK:
-				self.append_chat(strip_chars(packet.data))
+				self.append_chat([strip_chars(packet.data)])
 				self.elc.disconnect()
 				self.do_login()
 			elif packet.type == ELNetFromServer.YOU_DONT_EXIST:
-				self.append_chat('Incorrect username.')
+				self.append_chat(['Incorrect username.'])
 				self.elc.disconnect()
 				self.do_login()
 		return True
