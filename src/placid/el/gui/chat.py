@@ -59,6 +59,7 @@ class ChatGUI(gtk.Window):
 
 		# add the chat & tool vbox to the chat hbox o,0
 		self.tool_vbox = ToolVBox()
+		self.tool_vbox.channel_tree.connect('row-activated', self.__chan_list_dclick)
 		self.tool_vbox.buddy_tree.connect('row-activated', self.__buddy_list_dclick)
 		self.vbox.pack_start(self.chat_hbox, False, False, 0)
 		self.chat_hbox.pack_end(self.tool_vbox, False, False, 0)
@@ -161,6 +162,15 @@ class ChatGUI(gtk.Window):
 			self.msg_txt.set_text("%s %s" % (self.msg_txt.get_text(), buddy))
 		self.msg_txt.grab_focus()
 
+	def __chan_list_dclick(self, channel_tree, path, col, data=None):
+		"""User double-clicked a row in the buddy list treeview"""
+		# add @@N if msg_txt is empty
+		iter = self.tool_vbox.channel_list.get_iter(path)
+		chan = self.tool_vbox.channel_list.get_value(iter, 0)
+		if self.msg_txt.get_text() == "":
+			# add @@N
+			self.msg_txt.set_text("@@%s " % chan)
+		self.msg_txt.grab_focus()
 
 	def __process_packets(self, widget, data=None):
 		self.elc.keep_alive()
