@@ -11,7 +11,7 @@ import time
 from placid.el.common.actors import ELActor
 from placid.el.util.strings import strip_chars, split_str
 from placid.el.net.packets import ELPacket
-from placid.el.net.elconstants import ELNetFromServer, ELNetToServer
+from placid.el.net.elconstants import ELNetFromServer, ELNetToServer, ELConstants
 from placid.el.net.channel import Channel
 
 log = logging.getLogger('placid.el.net.parsers')
@@ -72,7 +72,6 @@ class ELRawTextMessageParser(MessageParser):
 		actors_str = ""
 		for actor in self.session.actors.values():
 			actors_str += "%s, " % actor
-
 		actors_strs = split_str(actors_str, 157) 
 		for str in actors_strs:
 			packets.append(ELPacket(ELNetToServer.RAW_TEXT, str))
@@ -97,10 +96,19 @@ class ELAddActorMessageParser(MessageParser):
 		log.debug("New actor: %s" % packet)
 		actor = ELActor()
 		actor.id, actor.x_pos, actor.y_pos, actor.z_pos, \
-		actor.z_rot, actor.type, actor.frame, actor.max_health, \
+		actor.z_rot, actor.type, frame, actor.max_health, \
 		actor.cur_health, actor.kind_of_actor \
 		= struct.unpack('<HHHHHBBHHB', packet.data[:17])
-		actor.name = packet.data[28:]
+
+		#Remove the buffs from the x/y coordinates
+		actor.x_pos = actor.x_pos & 0x7FF
+		actor.y_pos = actor.y_pos & 0x7FF
+
+		if packet.type == ELNetFromServer.ADD_NEW_ENHANCED_ACTOR:
+			actor.name = packet.data[28:]
+			frame = packet.data[22] #For some reason, data[11] is unused in the ENHANCED message
+		else:
+			actor.name = packet.data[17:]
 
 		
 		#The end of name is a \0, and there _might_ be two more bytes
@@ -124,29 +132,60 @@ class ELAddActorMessageParser(MessageParser):
 			tokens = actor.name.split()
 			actor.name = tokens[0]
 			actor.guild = tokens[1]
+		
+		#Deal with the current frame of the actor
+		if frame in (ELConstants.FRAME_DIE1, ELConstants.FRAME_DIE2):
+			actor.dead = True
+		elif frame in (ELConstants.FRAME_COMBAT_IDLE, ELConstants.FRAME_IN_COMBAT):
+			actor.fighting = True
+		elif frame >= ELConstants.FRAME_ATTACK_UP_1 and frame <= ELConstants.FRAME_ATTACK_UP_10:
+			actor.fighting = True
+		elif frame in (ELConstants.PAIN1, ELConstants.PAIN2):
+			actor.fighting = True
 
 		self.session.actors[actor.id] = actor
 
-		log.debug("Actor parsed: %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s" % (actor.id, actor.x_pos, actor.y_pos, actor.z_pos, \
-			actor.z_rot, actor.type, actor.frame, actor.max_health, \
+		log.debug("Actor parsed: %s, %s, %s, %s, %s, %s, %s, %s, %s, %s" % (actor.id, actor.x_pos, actor.y_pos, actor.z_pos, \
+			actor.z_rot, actor.type, actor.max_health, \
 			actor.cur_health, actor.kind_of_actor, actor.name))
 		return []
 
 class ELRemoveActorMessageParser(MessageParser):
+	def _get_ids(data):
+		offset = 0
+		while offset < len(data):
+			yield struct.unpack_from('<H', data, offset)[0]
+			offset += 2
+	_get_ids = staticmethod(_get_ids)
 	def parse(self, packet):
 		"""Remove actor packet. Remove from self.session.actors dict"""
 		log.debug("Remove actor packet: '%s'" % packet.data)
-		actor_id = struct.unpack('<H', packet.data)
 		log.debug("Actors: %s" % self.session.actors)
-		if actor_id in self.session.actors:
-			del self.session.actors[actor_id]
+		for actor_id in self._get_ids(packet.data):
+			if actor_id in self.session.actors:
+				del self.session.actors[actor_id]
+
+class ELAddActorCommandParser(MessageParser):
+	def _get_commands(data):
+		offset = 0
+		while offset < len(data):
+			yield struct.unpack_from('<HB', data, offset)
+			offset += 3
+	_get_commands = staticmethod(_get_commands)
+
+	def parse(self, packet):
+		log.debug("Actor command packet: '%s'" % packet.data)
+		for actor_id, command in self._get_commands(packet.data):
+			if actor_id in self.session.actors:
+				self.session.actors[actor_id].handle_command(command)
 
 class ELGetActiveChannelsMessageParser(MessageParser):
 	"""parse the GET_ACTIVE_CHANNELS message"""
 	def parse(self, packet):
-		chans = struct.unpack('<biii', packet.data)
+		chans = struct.unpack('<BIII', packet.data)
 		i = 0
 		active = chans[0]
 		for c in chans[1:]:
 			self.session.channels.append(Channel(c, i == active))
 			i += 1
+
