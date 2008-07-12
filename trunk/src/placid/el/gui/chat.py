@@ -52,7 +52,7 @@ class ChatGUI(gtk.Window):
 		self.chat_view.set_wrap_mode(gtk.WRAP_WORD)
 		self.chat_view.show()
 		self.scrolled_win.add(self.chat_view)
-		self.chat_hbox.pack_start(self.scrolled_win, False, False, 0)
+		self.chat_hbox.pack_start(self.scrolled_win, True, True, 0)
 
 		# set-up the channel & buddy list vbox and the buddy list scroll win
 		self.blist_scrolled_win = gtk.ScrolledWindow()
