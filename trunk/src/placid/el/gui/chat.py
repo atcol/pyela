@@ -67,15 +67,9 @@ class ChatGUI(gtk.Window):
 		self.chat_hbox.pack_end(self.tool_vbox, False, False, 0)
 
 		# setup the chat input & send button
-		self.msg_txt = gtk.Entry(max=155)
-		self.msg_txt.set_size_request(600, self.msg_txt.get_size_request()[1])
-		self.msg_txt.connect('key_press_event', self.__keypress)
-		self.msg_txt.show()
-		self.send_btn = gtk.Button('Send')
-		self.send_btn.connect('clicked', self.send_msg)
-		self.send_btn.show()
-		self.input_hbox.pack_start(self.msg_txt, True, True, 0)# don't expand, but fill the hbox
-		self.input_hbox.pack_start(self.send_btn, True, True, 0)
+		self.input_hbox = ChatInputHBox()
+		self.input_hbox.msg_txt.connect('key_press_event', self.__keypress)
+		self.input_hbox.send_btn.connect('clicked', self.send_msg)
 		self.vbox.pack_end(self.input_hbox, False, False, 0)
 
 		# show the login gui to get the user credentials
@@ -90,7 +84,7 @@ class ChatGUI(gtk.Window):
 		self.set_title("%s@%s:%s - Pyela Chat" % (self.elc.username, self.elc.host, self.elc.port))
 		self.show_all()
 		self.append_chat(['Welcome to Pyela-Chat, part of the Pyela toolset. Visit pyela.googlecode.com for more information'])
-		self.msg_txt.grab_focus()
+		self.input_hbox.msg_txt.grab_focus()
 
 		# setup the channel list
 		self.channels = []
@@ -119,27 +113,27 @@ class ChatGUI(gtk.Window):
 	def __keypress(self, widget, event=None):
 		if event.keyval == gtk.keysyms.Return:
 			self.send_msg(None, None)
-			self.msg_buff.append(self.msg_txt.get_text())
+			self.msg_buff.append(self.input_hbox.msg_txt.get_text())
 		elif event.keyval == gtk.keysyms.uparrow:
 			if self.msgb_idx > 0 and self.msgb_idx < len(self.msg_buff):
 				self.msgb_idx -= 1
-				self.msg_txt.set_text(self.msg_buff[self.msgb_idx])
+				self.input_hbox.msg_txt.set_text(self.msg_buff[self.msgb_idx])
 		elif event.keyval == gtk.keysyms.downarrow:
 			if self.msgb_idx < len(self.msg_buff):
 				self.msgb_idx += 1
-				self.msg_txt.set_text(self.msg_buff[self.msgb_idx])
+				self.input_hbox.msg_txt.set_text(self.msg_buff[self.msgb_idx])
 		return False
 	
 	def send_msg(self, widget, data=None):
-		msg = self.msg_txt.get_text()
+		msg = self.input_hbox.msg_txt.get_text()
 		if msg != '':
 			type = ELNetToServer.RAW_TEXT
-			if self.msg_txt.get_text().startswith('/'):
+			if self.input_hbox.msg_txt.get_text().startswith('/'):
 				type = ELNetToServer.SEND_PM
-				msg = self.msg_txt.get_text()[1:]
+				msg = self.input_hbox.msg_txt.get_text()[1:]
 				
 			self.elc.send(ELPacket(type, msg))
-			self.msg_txt.set_text("")
+			self.input_hbox.msg_txt.set_text("")
 		return True
 	
 	def __keep_alive(self):
@@ -156,25 +150,25 @@ class ChatGUI(gtk.Window):
 
 	def __buddy_list_dclick(self, buddy_tree, path, col, data=None):
 		"""User double-clicked a row in the buddy list treeview"""
-		# add /[name] if self.msg_txt is empty, otherwise append the name
+		# add /[name] if self.input_hbox.msg_txt is empty, otherwise append the name
 		iter = self.tool_vbox.buddy_list.get_iter(path)
 		buddy = self.tool_vbox.buddy_list.get_value(iter, 0)
-		if self.msg_txt.get_text() == "":
+		if self.input_hbox.msg_txt.get_text() == "":
 			# add /[name]
-			self.msg_txt.set_text("/%s " % buddy)
+			self.input_hbox.msg_txt.set_text("/%s " % buddy)
 		else:
-			self.msg_txt.set_text("%s %s" % (self.msg_txt.get_text(), buddy))
-		self.msg_txt.grab_focus()
+			self.input_hbox.msg_txt.set_text("%s %s" % (self.input_hbox.msg_txt.get_text(), buddy))
+		self.input_hbox.msg_txt.grab_focus()
 
 	def __chan_list_dclick(self, channel_tree, path, col, data=None):
 		"""User double-clicked a row in the buddy list treeview"""
-		# add @@N if msg_txt is empty
+		# add @@N if input_hbox.msg_txt is empty
 		iter = self.tool_vbox.channel_list.get_iter(path)
 		chan = self.tool_vbox.channel_list.get_value(iter, 0)
-		if self.msg_txt.get_text() == "":
+		if self.input_hbox.msg_txt.get_text() == "":
 			# add @@N
-			self.msg_txt.set_text("@@%s " % chan)
-		self.msg_txt.grab_focus()
+			self.input_hbox.msg_txt.set_text("@@%s " % chan)
+		self.input_hbox.msg_txt.grab_focus()
 
 	def __process_packets(self, widget, data=None):
 		self.elc.keep_alive()
@@ -277,3 +271,13 @@ class ToolVBox(gtk.VBox):
 		self.pack_start(self.channel_tree, False, False, 0)
 		self.pack_start(self.blist_scrolled_win, True, True, 0)
 		self.show()
+class ChatInputHBox(gtk.HBox):
+	def __init__(self):
+		super(ChatInputHBox, self).__init__()
+		self.msg_txt = gtk.Entry(max=155)
+		self.msg_txt.set_size_request(600, self.msg_txt.get_size_request()[1])
+		self.msg_txt.show()
+		self.send_btn = gtk.Button('Send')
+		self.send_btn.show()
+		self.pack_start(self.msg_txt, True, True, 0)# don't expand, but fill the hbox
+		self.pack_start(self.send_btn, True, True, 0)
