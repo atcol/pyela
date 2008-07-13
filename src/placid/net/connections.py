@@ -63,8 +63,9 @@ class BaseConnection(object):
 		pass
 
 	def process_packets(self, packets):
-		"""Passes the given packets to the underlying packet handler if present."""
-		self.packet_handler.process_packets(packets)
+		"""Passes the given packets to the underlying packet handler if present
+		and return a list of placid.logic.event.Event objects"""
+		return self.packet_handler.process_packets(packets)
 
 	def process_queue(self):
 		"""Process this connection's output queue, if present
