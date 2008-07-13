@@ -211,11 +211,13 @@ class ELAddActorCommandParser(MessageParser):
 class ELGetActiveChannelsMessageParser(MessageParser):
 	"""parse the GET_ACTIVE_CHANNELS message"""
 	def parse(self, packet):
+		del self.session.channels[:]
 		chans = struct.unpack('<BIII', packet.data)
 		i = 0
 		active = chans[0]
 		for c in chans[1:]:
-			self.session.channels.append(Channel(c, i == active))
+			if c != 0:
+				self.session.channels.append(Channel(c, i == active))
 			i += 1
 		return []
 
