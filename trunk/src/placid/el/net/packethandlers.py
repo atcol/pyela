@@ -41,6 +41,7 @@ class BaseELPacketHandler(BasePacketHandler):
 		self.__setup_callbacks()
 
 	def process_packets(self, packets):
+		events = []
 		for packet in packets:
 			log.debug("Message: %s?, %d, type=%s" % \
 				(ELNetFromServer.to_identifier(ELNetFromServer(), int(packet.type)), packet.type, type(packet)))
