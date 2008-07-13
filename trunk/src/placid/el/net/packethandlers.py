@@ -45,10 +45,8 @@ class BaseELPacketHandler(BasePacketHandler):
 			log.debug("Message: %s?, %d, type=%s" % \
 				(ELNetFromServer.to_identifier(ELNetFromServer(), int(packet.type)), packet.type, type(packet)))
 			if packet.type in self.CALLBACKS:
-				opt_packets = self.CALLBACKS[packet.type].parse(packet)
-				if opt_packets and len(opt_packets) > 0:
-					self._opt.extend(opt_packets)
-		return []
+				events = self.CALLBACKS[packet.type].parse(packet)
+		return events
 
 class ELTestPacketHandler(BaseELPacketHandler):
 	"""A derivative of BasePacketHandler that watches for RAW_TEXT packets 
@@ -56,7 +54,9 @@ class ELTestPacketHandler(BaseELPacketHandler):
 	"""
 
 	def __init__(self, session):
-		super(ELTestPacketHandler, self).__init__(session)
+		self.session = session
+		self.CALLBACKS = {}
+		self.__setup_callbacks()
 
 	def __setup_callbacks(self):
 		self.CALLBACKS[ELNetFromServer.RAW_TEXT] = ELRawTextMessageParser(self.session)
@@ -82,6 +82,6 @@ class ChatGUIPacketHandler(BaseELPacketHandler):
 		self.CALLBACKS[ELNetFromServer.BUDDY_EVENT] = ELBuddyEventMessageParser(self.session)
 	
 	def process_packets(self, packets):
-		super(ChatGUIPacketHandler, self).process_packets(packets)
+		return super(ChatGUIPacketHandler, self).process_packets(packets)
 		# create event objects if any of the packets match 
 		# relevant criteria
