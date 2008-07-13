@@ -233,12 +233,13 @@ class ChatArea(gtk.ScrolledWindow):
 		self.chat_view = gtk.TextView(self.chat_buff)
 		self.chat_view.set_size_request(640, 480)
 		self.chat_view.set_editable(False)
-		self.chat_view.set_wrap_mode(gtk.WRAP_WORD)
+		self.chat_view.set_wrap_mode(gtk.WRAP_CHAR)
 		self.chat_view.show()
 		self.add(self.chat_view)
 
 class ToolVBox(gtk.VBox):
-	"""A vertical gtk.Box that contains the channel and buddy list TreeView objects"""
+	"""A vertical gtk.Box that contains the minimap, channel and buddy list widgets"""
+
 	def __init__(self):
 		super(ToolVBox, self).__init__()
 		# set-up the channel & buddy list vbox and the buddy list scroll win
@@ -271,7 +272,9 @@ class ToolVBox(gtk.VBox):
 		self.pack_start(self.channel_tree, False, False, 0)
 		self.pack_start(self.blist_scrolled_win, True, True, 0)
 		self.show()
+
 class ChatInputHBox(gtk.HBox):
+	"""Extends gtk.HBox to provide an input (gtk.Entry) and send button"""
 	def __init__(self):
 		super(ChatInputHBox, self).__init__()
 		self.msg_txt = gtk.Entry(max=155)
