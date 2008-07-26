@@ -35,6 +35,11 @@ def sig_cleanup(signal, frame):
 		con.disconnect()
 	sys.exit(0)
 
+def sig_hup(signal, frame):
+	for con in connections:
+		con.disconnect()
+	main()
+
 def main():
 	signal.signal(signal.SIGHUP, sig_cleanup)
 	signal.signal(signal.SIGINT, sig_cleanup)

@@ -30,6 +30,7 @@ from placid.el.net.packets import ELPacket
 from placid.el.util.strings import strip_chars
 from placid.el.net.channel import Channel
 from placid.el.gui.login import LoginGUI
+from placid.el.gui.minimapwidget import Minimap
 
 class ChatGUI(gtk.Window):
 	def __init__(self):
@@ -247,6 +248,12 @@ class ToolVBox(gtk.VBox):
 		self.blist_scrolled_win.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
 		self.blist_scrolled_win.show()
 		#self.vbox = gtk.VBox(False, 0)
+
+		# set-up the minimap
+		self.minimap = Minimap()
+		self.minimap.set_size_request(200, 200)
+		self.minimap.show()
+		self.pack_start(self.minimap, False, False, 0)
 
 		# set-up the channel list tree view
 		self.channel_list = gtk.ListStore(gobject.TYPE_STRING)

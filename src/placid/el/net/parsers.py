@@ -25,7 +25,7 @@ import struct
 import time
 
 from placid.el.common.actors import ELActor
-from placid.el.util.strings import strip_chars
+from placid.el.util.strings import strip_chars, split_str, is_colour, el_colour_to_rgb
 from placid.el.net.packets import ELPacket
 from placid.el.net.elconstants import ELNetFromServer, ELNetToServer, ELConstants
 from placid.el.net.channel import Channel
@@ -118,7 +118,7 @@ class BotRawTextMessageParser(MessageParser):
 
 class ELAddActorMessageParser(MessageParser):
 	def parse(self, packet):
-		"""Parse an ADD_ENHANCED_ACTOR message"""
+		"""Parse an ADD_NEW_(ENHANCED)_ACTOR message"""
 		log.debug("New actor: %s" % packet)
 		actor = ELActor()
 		actor.id, actor.x_pos, actor.y_pos, actor.z_pos, \
@@ -132,10 +132,10 @@ class ELAddActorMessageParser(MessageParser):
 
 		if packet.type == ELNetFromServer.ADD_NEW_ENHANCED_ACTOR:
 			actor.name = packet.data[28:]
-			frame = packet.data[22] #For some reason, data[11] is unused in the ENHANCED message
+			frame = struct.unpack('B', packet.data[22])[0] #For some reason, data[11] is unused in the ENHANCED message
+			actor.kind_of_actor = struct.unpack('B', packet.data[27])[0]
 		else:
 			actor.name = packet.data[17:]
-
 		
 		#The end of name is a \0, and there _might_ be two more bytes
 		# containing actor-scale info.
@@ -150,14 +150,35 @@ class ELAddActorMessageParser(MessageParser):
 			actor.scale = 1
 			actor.name = actor.name[:-1]
 
-		actor.name = strip_chars(actor.name)
+		#Find the actor's name's colour char
+		i = 0
+		while i < len(actor.name) and is_colour(actor.name[i]):
+			actor.name_colour = el_colour_to_rgb(actor.name[i])
+			i += 1
+		if actor.name_colour[0] == -1:
+			#We didn't find any colour codes, use kind_of_actor
+			if actor.kind_of_actor == ELConstants.NPC:
+				#NPC, bluish
+				#The real client colour is (0.3, 0.8, 1.0), but it's too green to see on the minimap
+				actor.name_colour = (0.0, 0.0, 1.0)
+			elif actor.kind_of_actor in (ELConstants.HUMAN, ELConstants.COMPUTER_CONTROLLED_HUMAN):
+				#Regular player, white
+				actor.name_colour = (1.0, 1.0, 1.0)
+			elif packet.type == ELNetFromServer.ADD_NEW_ENHANCED_ACTOR and actor.kind_of_actor in (ELConstants.PKABLE_HUMAN, ELConstants.PKABLE_COMPUTER_CONTROLLED):
+				#PKable player, red
+				actor.name_colour = (1.0, 0.0, 0.0)
+			else:
+				#Animal, yellow
+				actor.name_colour = (1.0, 1.0, 0.0)
 
-		if ' ' in actor.name:
+		space = actor.name.rfind(' ')
+		if space != -1 and space > 0 and space+1 < len(actor.name) and is_colour(actor.name[space+1]):
 			log.debug("Actor has a guild. Parsing from '%s'" % actor.name)
 			# split the name into playername and guild
-			tokens = actor.name.split()
+			tokens = actor.name.rsplit(' ', 1)
 			actor.name = tokens[0]
-			actor.guild = tokens[1]
+			actor.guild = strip_chars(tokens[1])
+		actor.name = strip_chars(actor.name)
 		
 		#Deal with the current frame of the actor
 		if frame in (ELConstants.FRAME_DIE1, ELConstants.FRAME_DIE2):
@@ -170,6 +191,8 @@ class ELAddActorMessageParser(MessageParser):
 			actor.fighting = True
 
 		self.session.actors[actor.id] = actor
+		if actor.id == self.session.own_actor_id:
+			self.session.own_actor = actor
 
 		log.debug("Actor parsed: %s, %s, %s, %s, %s, %s, %s, %s, %s, %s" % (actor.id, actor.x_pos, actor.y_pos, actor.z_pos, \
 			actor.z_rot, actor.type, actor.max_health, \
@@ -183,6 +206,7 @@ class ELRemoveActorMessageParser(MessageParser):
 			yield struct.unpack_from('<H', data, offset)[0]
 			offset += 2
 	_get_ids = staticmethod(_get_ids)
+
 	def parse(self, packet):
 		"""Remove actor packet. Remove from self.session.actors dict"""
 		log.debug("Remove actor packet: '%s'" % packet.data)
@@ -190,6 +214,15 @@ class ELRemoveActorMessageParser(MessageParser):
 		for actor_id in self._get_ids(packet.data):
 			if actor_id in self.session.actors:
 				del self.session.actors[actor_id]
+			if actor_id == self.session.own_actor_id:
+				self.session.own_actor_id = -1
+				self.session.own_actor = None
+		return []
+
+class ELRemoveAllActorsParser(MessageParser):
+	def parse(self, packet):
+		log.debug("Remove all actors packet")
+		self.session.actors = {}
 		return []
 
 class ELAddActorCommandParser(MessageParser):
@@ -205,6 +238,15 @@ class ELAddActorCommandParser(MessageParser):
 		for actor_id, command in self._get_commands(packet.data):
 			if actor_id in self.session.actors:
 				self.session.actors[actor_id].handle_command(command)
+		return []
+
+class ELYouAreParser(MessageParser):
+	def parse(self, packet):
+		log.debug("YouAre packet: '%s'" % packet.data)
+		id = struct.unpack('<H', packet.data)[0]
+		self.session.own_actor_id = id
+		if id in self.session.actors:
+			self.own_actor = self.session.actors[id]
 		return []
 
 class ELGetActiveChannelsMessageParser(MessageParser):

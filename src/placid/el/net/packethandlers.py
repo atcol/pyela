@@ -26,7 +26,7 @@ from placid.el.net.packets import ELPacket
 from placid.el.net.parsers import GUIRawTextMessageParser, BotRawTextMessageParser, \
 	ELAddActorMessageParser, ELAddActorCommandParser, \
 	ELRemoveActorMessageParser, ELGetActiveChannelsMessageParser, \
-	ELBuddyEventMessageParser
+	ELBuddyEventMessageParser, ELRemoveAllActorsParser, ELYouAreParser
 
 log = logging.getLogger('placid.el.net.packethandlers')
 
@@ -65,6 +65,8 @@ class ELTestPacketHandler(BaseELPacketHandler):
 		self.CALLBACKS[ELNetFromServer.ADD_NEW_ACTOR] = ELAddActorMessageParser(self.session)
 		self.CALLBACKS[ELNetFromServer.ADD_ACTOR_COMMAND] = ELAddActorCommandParser(self.session)
 		self.CALLBACKS[ELNetFromServer.REMOVE_ACTOR] = ELRemoveActorMessageParser(self.session)
+		self.CALLBACKS[ELNetFromServer.KILL_ALL_ACTORS] = ELRemoveAllActorsParser(self.session)
+		self.CALLBACKS[ELNetFromServer.YOU_ARE] = ELYouAreParser(self.session)
 		self.CALLBACKS[ELNetFromServer.GET_ACTIVE_CHANNELS] = ELGetActiveChannelsMessageParser(self.session)
 
 class ChatGUIPacketHandler(BaseELPacketHandler):
@@ -79,6 +81,8 @@ class ChatGUIPacketHandler(BaseELPacketHandler):
 		self.CALLBACKS[ELNetFromServer.ADD_NEW_ACTOR] = ELAddActorMessageParser(self.session)
 		self.CALLBACKS[ELNetFromServer.ADD_ACTOR_COMMAND] = ELAddActorCommandParser(self.session)
 		self.CALLBACKS[ELNetFromServer.REMOVE_ACTOR] = ELRemoveActorMessageParser(self.session)
+		self.CALLBACKS[ELNetFromServer.KILL_ALL_ACTORS] = ELRemoveAllActorsParser(self.session)
+		self.CALLBACKS[ELNetFromServer.YOU_ARE] = ELYouAreParser(self.session)
 		self.CALLBACKS[ELNetFromServer.GET_ACTIVE_CHANNELS] = ELGetActiveChannelsMessageParser(self.session)
 		self.CALLBACKS[ELNetFromServer.BUDDY_EVENT] = ELBuddyEventMessageParser(self.session)
 	
