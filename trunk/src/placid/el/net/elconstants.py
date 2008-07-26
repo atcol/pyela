@@ -387,30 +387,30 @@ class ELConstants(ReflectiveConstants):
 	EGRAVE = 187
 	IUML = 188
 	OCIRC = 189
-	UGRAVE = 190
-	AUMLAUT = 191
-	OUMLAUT = 192
-	UUMLAUT = 193
+	uGRAVE = 190
+	aUMLAUT = 191
+	oUMLAUT = 192
+	uUMLAUT = 193
 	AUMLAUT = 194
 	OUMLAUT = 195
 	UUMLAUT = 196
 	DOUBLES = 197
-	AELIG = 198
-	OSLASH = 199
-	ARING = 200
+	aELIG = 198
+	oSLASH = 199
+	aRING = 200
 	AELIG = 201
 	OSLASH = 202
 	ARING = 203
-	ENYE = 204
+	EnyE = 204
 	ENYE = 205
-	AACCENT = 206
+	aACCENT = 206
 	AACCENT = 207
 	EACCENT = 208
-	IACCENT = 209
+	iACCENT = 209
 	IACCENT = 210
-	OACCENT = 211
+	oACCENT = 211
 	OACCENT = 212
-	UACCENT = 213
+	uACCENT = 213
 	UACCENT = 214
 	SPECIALCHAR_UBOUND = 214
 # Windows
@@ -663,6 +663,12 @@ class ELConstants(ReflectiveConstants):
 	ITEM_INVENTORY_USABLE = 8
 	ITEM_STACKABLE = 4
 	SIGILS = ('Change', 'Restore', 'Space', 'Increase', 'Decrease', 'Temporary', 'Permanent', 'Move', 'Local', 'Global', 'Fire', 'Water', 'Air', 'Earth', 'Spirit', 'Matter', 'Energy', 'Magic', 'Destroy', 'Create', 'Knowledge', 'Protection', 'Remove', 'Health', 'Life', 'Death')
+#Actor kinds
+	HUMAN = 1
+	NPC = 2
+	COMPUTER_CONTROLLED_HUMAN = 3
+	PKABLE_HUMAN = 4
+	PKABLE_COMPUTER_CONTROLLED = 5
 
 class ELNetFromServer(ReflectiveConstants):
 	"""Holds message types that are sent TO the client, from the server"""

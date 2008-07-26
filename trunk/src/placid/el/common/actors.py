@@ -22,7 +22,7 @@ class ELActor(object):
 	def __init__(self):
 		self.id = -1
 		self.name = None
-		self.name_colour = 0
+		self.name_colour = (-1, -1, -1)
 		self.guild = None
 		self.health = 0
 		self.max_health = 0

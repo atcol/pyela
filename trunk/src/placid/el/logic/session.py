@@ -59,6 +59,8 @@ class ELSession(Session):
 		self.actors = {}
 		self.channels = []
 		self.buddies = []
+		self.own_actor_id = -1
+		self.own_actor = None
 	
 	def add_actor(self, actor):
 		self.actors.append(actor)
