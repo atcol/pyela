@@ -25,10 +25,11 @@ import struct
 import time
 
 from placid.el.common.actors import ELActor
-from placid.el.util.strings import strip_chars, split_str
+from placid.el.util.strings import strip_chars
 from placid.el.net.packets import ELPacket
 from placid.el.net.elconstants import ELNetFromServer, ELNetToServer, ELConstants
 from placid.el.net.channel import Channel
+from placid.logic.event import Event
 
 log = logging.getLogger('placid.el.net.parsers')
 
@@ -55,6 +56,7 @@ class GUIRawTextMessageParser(MessageParser):
 				self.session.channels[int(channel - ELConstants.CHAT_CHANNEL1)].number))])
 		else:
 			self.session.msg_buf.extend(["\n%s" % strip_chars(packet.data[1:])])
+		return []
 	
 class BotRawTextMessageParser(MessageParser):
 	"""Handles RAW_TEXT messages
@@ -65,7 +67,7 @@ class BotRawTextMessageParser(MessageParser):
 	"""
 
 	def __init__(self, session):
-		super(ELRawTextMessageParser, self).__init__(session)
+		super(BotRawTextMessageParser, self).__init__(session)
 		self.commands = {}
 		self.commands['WHO'] = self._do_who
 		self.commands['HI'] = self._do_hi
@@ -90,9 +92,6 @@ class BotRawTextMessageParser(MessageParser):
 				if len(words) >= 1 and words[0].upper() in self.commands:
 					log.debug("Found command '%s', executing" % words[0].upper())
 					# data[1] is the params onwards to the command
-					packets = self.commands[words[0].upper()](person, words[1:])
-					return packets
-		return []
 	
 	def _do_who(self, person, params):
 		packets = []
