@@ -35,10 +35,9 @@ class BaseELPacketHandler(BasePacketHandler):
 	"""
 
 	def __init__(self, session):
-		super(ELTestPacketHandler, self).__init__()
+		super(BaseELPacketHandler, self).__init__()
 		self.session = session
 		self.CALLBACKS = {}
-		self.__setup_callbacks()
 
 	def process_packets(self, packets):
 		events = []
@@ -55,12 +54,13 @@ class ELTestPacketHandler(BaseELPacketHandler):
 	"""
 
 	def __init__(self, session):
+		super(ELTestPacketHandler, self).__init__(session)
 		self.session = session
 		self.CALLBACKS = {}
 		self.__setup_callbacks()
 
 	def __setup_callbacks(self):
-		self.CALLBACKS[ELNetFromServer.RAW_TEXT] = ELRawTextMessageParser(self.session)
+		self.CALLBACKS[ELNetFromServer.RAW_TEXT] = BotRawTextMessageParser(self.session)
 		self.CALLBACKS[ELNetFromServer.ADD_NEW_ENHANCED_ACTOR] = ELAddActorMessageParser(self.session)
 		self.CALLBACKS[ELNetFromServer.ADD_NEW_ACTOR] = ELAddActorMessageParser(self.session)
 		self.CALLBACKS[ELNetFromServer.ADD_ACTOR_COMMAND] = ELAddActorCommandParser(self.session)
