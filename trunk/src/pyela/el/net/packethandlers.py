@@ -20,15 +20,15 @@ import logging
 import collections
 import struct
 
-from placid.net.packethandlers import BasePacketHandler
-from placid.el.net.elconstants import ELNetFromServer, ELNetToServer
-from placid.el.net.packets import ELPacket
-from placid.el.net.parsers import GUIRawTextMessageParser, BotRawTextMessageParser, \
+from pyela.net.packethandlers import BasePacketHandler
+from pyela.el.net.elconstants import ELNetFromServer, ELNetToServer
+from pyela.el.net.packets import ELPacket
+from pyela.el.net.parsers import GUIRawTextMessageParser, BotRawTextMessageParser, \
 	ELAddActorMessageParser, ELAddActorCommandParser, \
 	ELRemoveActorMessageParser, ELGetActiveChannelsMessageParser, \
 	ELBuddyEventMessageParser, ELRemoveAllActorsParser, ELYouAreParser
 
-log = logging.getLogger('placid.el.net.packethandlers')
+log = logging.getLogger('pyela.el.net.packethandlers')
 
 class BaseELPacketHandler(BasePacketHandler):
 	"""Defines base functionality for handling an ELConnection.

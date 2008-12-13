@@ -22,15 +22,15 @@ import datetime
 import logging
 import ConfigParser
 
-from placid.el.net.connections import ELConnection
-from placid.el.net.elconstants import ELConstants
-from placid.el.net.elconstants import ELNetFromServer, ELNetToServer
-from placid.el.net.packets import ELPacket
-from placid.el.logic.session import ELSession
-from placid.el.common.exceptions import ConnectionException, ManagerException
-from placid.el.net.packethandlers import ELTestPacketHandler
+from pyela.el.net.connections import ELConnection
+from pyela.el.net.elconstants import ELConstants
+from pyela.el.net.elconstants import ELNetFromServer, ELNetToServer
+from pyela.el.net.packets import ELPacket
+from pyela.el.logic.session import ELSession
+from pyela.el.common.exceptions import ConnectionException, ManagerException
+from pyela.el.net.packethandlers import ELTestPacketHandler
 
-log = logging.getLogger('placid.el.net.managers')
+log = logging.getLogger('pyela.el.net.managers')
 
 LAST_ASTRO_MAX_SECS = 60
 
@@ -53,14 +53,14 @@ class ConnectionManager(object):
 class MultiConnectionManager(ConnectionManager):
 	"""A derived class from ConnectionManager.
 	This implementation can handle multiple instances of 
-	placid.el.net.connections.Connection. 
+	pyela.el.net.connections.Connection. 
 
-	All messages received (instances of placid.el.net.packets.Packet) are passed to 
-	the particular connection's packet handler (placid.el.net.packethandlers)
+	All messages received (instances of pyela.el.net.packets.Packet) are passed to 
+	the particular connection's packet handler (pyela.el.net.packethandlers)
 
 	Attributes:
 		_p 			- instance of select.poll(); leave it alone
-		connections - a list of placid.net.connections.BaseConnection or derivative
+		connections - a list of pyela.net.connections.BaseConnection or derivative
 					  to manage
 		config		- the instance of ConfigParser, passed to init
 		session		- the ELSession instance, representing the data

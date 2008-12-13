@@ -20,9 +20,9 @@ import gtk
 import time
 import select
 
-from placid.el.net.connections import ELConnection
-from placid.el.net.elconstants import ELNetFromServer, ELNetToServer
-from placid.el.util.strings import strip_chars
+from pyela.el.net.connections import ELConnection
+from pyela.el.net.elconstants import ELNetFromServer, ELNetToServer
+from pyela.el.util.strings import strip_chars
 
 class LoginGUI(gtk.Dialog):
 	"""A simple login GUI that acts as a dialog window of a parent"""

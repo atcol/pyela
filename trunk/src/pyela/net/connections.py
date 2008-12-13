@@ -16,9 +16,9 @@
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
 import logging 
 
-from placid.net.packethandlers import BasePacketHandler
+from pyela.net.packethandlers import BasePacketHandler
 
-log = logging.getLogger('placid.net.connections')
+log = logging.getLogger('pyela.net.connections')
 
 class BaseConnection(object):
 	"""Base connection class that defines common functionality for TCP connections"""
@@ -59,12 +59,12 @@ class BaseConnection(object):
 		pass
 	
 	def recv(self, length=2048):
-		"""process input and convert to an instance of placid.el.net.packets.Packet"""
+		"""process input and convert to an instance of pyela.el.net.packets.Packet"""
 		pass
 
 	def process_packets(self, packets):
 		"""Passes the given packets to the underlying packet handler if present
-		and return a list of placid.logic.event.Event objects"""
+		and return a list of pyela.logic.event.Event objects"""
 		return self.packet_handler.process_packets(packets)
 
 	def process_queue(self):

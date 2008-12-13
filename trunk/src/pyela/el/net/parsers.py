@@ -24,14 +24,14 @@ import logging
 import struct
 import time
 
-from placid.el.common.actors import ELActor
-from placid.el.util.strings import strip_chars, split_str, is_colour, el_colour_to_rgb
-from placid.el.net.packets import ELPacket
-from placid.el.net.elconstants import ELNetFromServer, ELNetToServer, ELConstants
-from placid.el.net.channel import Channel
-from placid.logic.event import Event
+from pyela.el.common.actors import ELActor
+from pyela.el.util.strings import strip_chars, split_str, is_colour, el_colour_to_rgb
+from pyela.el.net.packets import ELPacket
+from pyela.el.net.elconstants import ELNetFromServer, ELNetToServer, ELConstants
+from pyela.el.net.channel import Channel
+from pyela.logic.event import Event
 
-log = logging.getLogger('placid.el.net.parsers')
+log = logging.getLogger('pyela.el.net.parsers')
 
 class MessageParser(object):
 	"""A message received from the Eternal Lands server"""

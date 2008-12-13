@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
 #!/usr/bin/env python
-from placid.el.gui.chat import ChatGUI
+from pyela.el.gui.chat import ChatGUI
 
 def main():
 	c = ChatGUI()

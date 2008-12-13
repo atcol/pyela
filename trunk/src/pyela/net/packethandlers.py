@@ -17,7 +17,7 @@
 import collections
 import logging
 
-log = logging.getLogger('placid.net.packethandlers')
+log = logging.getLogger('pyela.net.packethandlers')
 
 class BasePacketHandler(object):
 	"""The base packet handler type.
