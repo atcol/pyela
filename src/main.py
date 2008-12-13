@@ -20,10 +20,10 @@ import logging as log
 import signal
 import sys
 
-from placid.el.net.connections import get_elconnection_by_config, ELConnection
-from placid.el.logic.managers import MultiConnectionManager
-from placid.el.logic.session import ELSession, get_elsession_by_config
-from placid.el.net.packethandlers import ELTestPacketHandler
+from pyela.el.net.connections import get_elconnection_by_config, ELConnection
+from pyela.el.logic.managers import MultiConnectionManager
+from pyela.el.logic.session import ELSession, get_elsession_by_config
+from pyela.el.net.packethandlers import ELTestPacketHandler
 
 connections = []
 

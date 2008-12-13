@@ -14,7 +14,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
-from placid.el.net.elconstants import ELConstants
+from pyela.el.net.elconstants import ELConstants
 
 class ELActor(object):
 	"""An actor on the EL server"""

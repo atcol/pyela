@@ -22,17 +22,17 @@ import time
 import ConfigParser
 import collections
 
-from placid.net.connections import BaseConnection
-from placid.el.net.elconstants import ELConstants
-from placid.el.net.elconstants import ELNetToServer
-from placid.el.net.packets import ELPacket
-from placid.el.net.packethandlers import BasePacketHandler
-from placid.el.common.exceptions import ConnectionException
-from placid.el.logic.session import ELSession, get_elsession_by_config
+from pyela.net.connections import BaseConnection
+from pyela.el.net.elconstants import ELConstants
+from pyela.el.net.elconstants import ELNetToServer
+from pyela.el.net.packets import ELPacket
+from pyela.el.net.packethandlers import BasePacketHandler
+from pyela.el.common.exceptions import ConnectionException
+from pyela.el.logic.session import ELSession, get_elsession_by_config
 
 CONNECTED, CONNECTING, DISCONNECTED = range(3)
 
-log = logging.getLogger('placid.el.net.connections')
+log = logging.getLogger('pyela.el.net.connections')
 
 def get_elconnection_by_config(config):
 	"""Create a connection by using the ConfigParser instance, config."""
@@ -53,7 +53,7 @@ class ELConnection(BaseConnection):
 		username	- the EL username to use when logging in
 		password	- the plaintext password to use to log in
 		status		- the status of this connection, at construction this is 
-					  set to DISCONNECTED. See placid.el.net.connections
+					  set to DISCONNECTED. See pyela.el.net.connections
 		last_send	- the time.time() of our last packet transmission
 		con_tries	- how many times we've tried to connect
 		MAX_CON_TRIES - the maximum amount of [re]connection attempts

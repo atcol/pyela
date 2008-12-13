@@ -22,15 +22,15 @@ import struct
 from random import random as rand
 import sys
 
-from placid.el.net.connections import ELConnection
-from placid.el.net.elconstants import ELConstants, ELNetFromServer, ELNetToServer
-from placid.el.net.packethandlers import ChatGUIPacketHandler
-from placid.el.logic.session import ELSession
-from placid.el.net.packets import ELPacket
-from placid.el.util.strings import strip_chars
-from placid.el.net.channel import Channel
-from placid.el.gui.login import LoginGUI
-from placid.el.gui.minimapwidget import Minimap
+from pyela.el.net.connections import ELConnection
+from pyela.el.net.elconstants import ELConstants, ELNetFromServer, ELNetToServer
+from pyela.el.net.packethandlers import ChatGUIPacketHandler
+from pyela.el.logic.session import ELSession
+from pyela.el.net.packets import ELPacket
+from pyela.el.util.strings import strip_chars
+from pyela.el.net.channel import Channel
+from pyela.el.gui.login import LoginGUI
+from pyela.el.gui.minimapwidget import Minimap
 
 class ChatGUI(gtk.Window):
 	def __init__(self):
