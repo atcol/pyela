@@ -29,7 +29,6 @@ from pyela.el.util.strings import strip_chars, split_str, is_colour, el_colour_t
 from pyela.el.net.packets import ELPacket
 from pyela.el.net.elconstants import ELNetFromServer, ELNetToServer, ELConstants
 from pyela.el.net.channel import Channel
-from pyela.logic.event import Event
 
 log = logging.getLogger('pyela.el.net.parsers')
 
