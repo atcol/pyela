@@ -14,22 +14,27 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
-"""Objects and methods relating to events within the framework"""
+"""Holds the event mappings and allows the raising of events"""
 
-class BaseEventType(object):
-	"""A desciriptr for events"""
-	pass
+from pyela.logic.event import Event
 
-class BaseEvent(object):
-	"""Represents an action or occurance of actions within the framework.
-	Used in an event-driven manner within the PacketHandlers
-	"""
+class SimpleEventManager(object):
+	"""Defines the 'contract' for all events and their respective handlers. 
+	An event manager will deal with notifying the relevant handlers when 
+	a particular event is raised"""
 
 	def __init__(self):
-		"""Construct a basic event object with the optional 
-		data"""
+		self._handlers = {}
+
+	def raise_event(self, event):
+		"""Notify all handlers for the given event"""
 		pass
 
-	def get_type(self):
-		"""An identifier describing this particular event"""
+	def add_handler(self, event_handler):
+		"""Manage the given handler"""
+		# for each event in event_handler.get_events():
+		# 	if event in self._handlers:
+		# 		self._handlers[event.type].append(event_handler)
+		#	else: 
+		#		self._handlers[event.type] = (event_handler)
 		pass

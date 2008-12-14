@@ -74,7 +74,7 @@ class BaseConnection(object):
 		"""
 		while True:
 			p = self.packet_handler.opt_queue_shift()
-			log.debug("Processing: %s" % p)
+			if log.isEnabledFor('DEBUG'): log.debug("Processing: %s" % p)
 			if not p:
 				break
 			else:
