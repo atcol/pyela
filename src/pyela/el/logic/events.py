@@ -14,22 +14,17 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
-"""Objects and methods relating to events within the framework"""
+"""EL related events"""
 
-class BaseEventType(object):
-	"""A desciriptr for events"""
+from pyela.logic.event import BaseEventType, BaseEvent
+
+class ELEventType(BaseEventType):
 	pass
 
-class BaseEvent(object):
-	"""Represents an action or occurance of actions within the framework.
-	Used in an event-driven manner within the PacketHandlers
-	"""
+class ELEvent(BaseEvent):
 
-	def __init__(self):
-		"""Construct a basic event object with the optional 
-		data"""
-		pass
+	def __init__(self, type):
+		self.type = type
 
 	def get_type(self):
-		"""An identifier describing this particular event"""
-		pass
+		return self.type

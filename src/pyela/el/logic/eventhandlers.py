@@ -14,22 +14,3 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
-"""Objects and methods relating to events within the framework"""
-
-class BaseEventType(object):
-	"""A desciriptr for events"""
-	pass
-
-class BaseEvent(object):
-	"""Represents an action or occurance of actions within the framework.
-	Used in an event-driven manner within the PacketHandlers
-	"""
-
-	def __init__(self):
-		"""Construct a basic event object with the optional 
-		data"""
-		pass
-
-	def get_type(self):
-		"""An identifier describing this particular event"""
-		pass
