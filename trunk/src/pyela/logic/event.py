@@ -16,8 +16,15 @@
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
 """Objects and methods relating to events within the framework"""
 
+class EventException(Exception):
+	def __init__(self, val):
+		self.val = val
+
+	def __str__(self):
+		return repr(self.val)
+
 class BaseEventType(object):
-	"""A desciriptr for events"""
+	"""A desciriptor for events"""
 	pass
 
 class BaseEvent(object):

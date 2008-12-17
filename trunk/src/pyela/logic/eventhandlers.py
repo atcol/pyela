@@ -34,8 +34,8 @@ class BaseEventHandler(object):
 		"""Tell this handler to watch for the given event"""
 		pass
 
-	def get_events(self):
-		"""Returns a list of events that this handler is subscribed to"""
+	def get_event_types(self):
+		"""Returns a list of event types that this handler is subscribed to"""
 		pass
 
 class SingleEventHandler(BaseEventHandler):
@@ -45,10 +45,10 @@ class SingleEventHandler(BaseEventHandler):
 		self._event = event
 
 	def notify(self, event):
-		if event.id == self._event.id:
+		if event.get_type() == self._event.get_type():
+			pass # here we'll act on it
 			
-
-	def get_events(self):
+	def get_event_types(self):
 		return [self._event]
 
 	def subscribe_event(self, event):

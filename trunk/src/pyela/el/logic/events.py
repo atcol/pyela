@@ -16,10 +16,14 @@
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
 """EL related events"""
 
-from pyela.logic.event import BaseEventType, BaseEvent
+from pyela.logic.event import BaseEventType, BaseEvent, EventException
 
 class ELEventType(BaseEventType):
-	pass
+	def __init__(self, id):
+		self.id = id
+
+	def __str__(self):
+		return repr("ELEventType.id=%s" % self.id)
 
 class ELEvent(BaseEvent):
 
@@ -28,3 +32,18 @@ class ELEvent(BaseEvent):
 
 	def get_type(self):
 		return self.type
+
+	def __str__(self):
+		return repr("ELEvent.type=%s" % self.type)
+
+class ELNetEvent(ELEvent):
+	"""A network related event. The constructor will enforce the given type is 
+	in ELConstants, ELNetFromServer or ELNetToServer
+	"""
+	
+	def __init__(self, type):
+		#if type not in ELConstants or type not in ELNetFromServer \
+		#	or type not in ELNetToServer:
+		#		raise EventException("Incorrect type for a network event")
+		#else:
+		self.type = type
