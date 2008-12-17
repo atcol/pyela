@@ -16,7 +16,7 @@
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
 """Holds the event mappings and allows the raising of events"""
 
-from pyela.logic.event import Event
+from pyela.logic.event import BaseEvent
 
 class SimpleEventManager(object):
 	"""Defines the 'contract' for all events and their respective handlers. 

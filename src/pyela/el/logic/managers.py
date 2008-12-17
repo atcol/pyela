@@ -29,6 +29,8 @@ from pyela.el.net.packets import ELPacket
 from pyela.el.logic.session import ELSession
 from pyela.el.common.exceptions import ConnectionException, ManagerException
 from pyela.el.net.packethandlers import ELTestPacketHandler
+from pyela.el.logic.eventmanagers import ELSimpleEventManager
+from pyela.el.logic.eventhandlers import RawTextEventHandler
 
 log = logging.getLogger('pyela.el.net.managers')
 
@@ -60,6 +62,7 @@ class MultiConnectionManager(ConnectionManager):
 
 	Attributes:
 		_p 			- instance of select.poll(); leave it alone
+		_em			- instance of ELSimpleEventManager; used to map events
 		connections - a list of pyela.net.connections.BaseConnection or derivative
 					  to manage
 		config		- the instance of ConfigParser, passed to init
@@ -70,10 +73,15 @@ class MultiConnectionManager(ConnectionManager):
 	def __init__(self, connections):
 		"""Creates an instane with the given config, and the given connections"""
 		self._p = select.poll()
+		self._em = ELSimpleEventManager()
+		self.__map_events()
 		if None not in connections:
 			self.connections = connections
 		else:
 			raise ManagerException('None cannot be a connection')
+
+	def __map_events(self):
+		self._em.add_handler(RawTextEventHandler())
 
 	def __set_opt(self, val):
 		log.info("Something's trying to set my output queue. Blocked!")
@@ -96,14 +104,14 @@ class MultiConnectionManager(ConnectionManager):
 
 		while len(self.connections) > 0:
 			poll_time = self.__calc_poll_time()
-			log.debug("Setting poll with timeout %d" % poll_time)
+			if log.isEnabledFor(logging.DEBUG): log.debug("Setting poll with timeout %d" % poll_time)
 			p_opt = self._p.poll(poll_time)
-			log.debug("Poll ended: %s" % p_opt)
+			if log.isEnabledFor(logging.DEBUG): log.debug("Poll ended: %s" % p_opt)
 
 			# p_opt may be empty, which means the timeout occured
 			if len(p_opt) == 0:
 				# no input from our connections
-				log.debug("Poll returned nothing. Processing connection opt queue")
+				if log.isEnabledFor(logging.DEBUG): log.debug("Poll returned nothing. Processing connection opt queue")
 				# check if we need to send a keep-alive
 				for con in self.connections:
 					con.keep_alive()# send a keep-alive packet if we need to
@@ -120,11 +128,11 @@ class MultiConnectionManager(ConnectionManager):
 					con = self.get_connection_by_id(p_fileno)
 					if p_event & select.POLLIN or p_event & select.POLLPRI:
 						# found the con poll's referring to
-						log.debug("Got data for connection '%s'" % con)
+						if log.isEnabledFor(logging.DEBUG): log.debug("Got data for connection '%s'" % con)
 						packets = con.recv(length=2048)
 						#log.debug("Bytes (%d): %s" % (len(bytes), bytes))
 						if len(packets) != 0:
-							log.debug("Received %d packets" % len(packets))
+							if log.isEnabledFor(logging.DEBUG): log.debug("Received %d packets" % len(packets))
 							con.process_packets(packets)
 						else:
 							log.error("Empty packets returned. Connection down? Reconnecting... (con=%s)" % con)
@@ -135,7 +143,7 @@ class MultiConnectionManager(ConnectionManager):
 	def __reconnect(self, con):
 		# connection retries sleep
 		try:
-			log.debug("Sleeping 5 seconds before reconnect")
+			if log.isEnabledFor(logging.DEBUG): log.debug("Sleeping 5 seconds before reconnect")
 			time.sleep(5)
 			#con.con_tries = 0
 			return con.reconnect()
@@ -161,7 +169,7 @@ class MultiConnectionManager(ConnectionManager):
 
 			if this_pt < poll_time and this_pt > 0 and poll_time > 0:
 				poll_time = this_pt
-		log.debug("Calc'd poll time for %s is %d" % (con, int(poll_time)))
+		if log.isEnabledFor(logging.DEBUG): log.debug("Calc'd poll time for %s is %d" % (con, int(poll_time)))
 
 		return int(poll_time * 1000)
 
@@ -173,6 +181,6 @@ class MultiConnectionManager(ConnectionManager):
 
 	def __register_connections(self):
 		for con in self.connections:
-			log.debug("Registering %s" % con)
+			if log.isEnabledFor(logging.DEBUG): log.debug("Registering %s" % con)
 			if con.is_connected():
 				self._p.register(con, select.POLLIN | select.POLLPRI | select.POLLERR)

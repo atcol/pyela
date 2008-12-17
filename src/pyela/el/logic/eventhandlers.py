@@ -14,3 +14,33 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
+"""EL related event handlers"""
+
+from pyela.logic.eventhandlers import BaseEventHandler
+from pyela.el.logic.events import ELEventType
+from pyela.el.net.elconstants import ELNetFromServer
+
+import logging
+
+log = logging.getLogger('pyela.el.logic.eventhandlers')
+
+class RawTextEventHandler(BaseEventHandler):
+	"""Deals with all network related events"""
+
+	def __init__(self):
+		self.event_types = []
+		self.event_types.append(ELEventType(ELNetFromServer.RAW_TEXT))
+		# TODO: these could be configurable
+
+	def notify(self, event):
+		if event.type.id == ELNetFromServer.RAW_TEXT:
+			log.debug("HAHAH I GOTZ RAW TEXT JA!")
+
+	def get_event_types(self):
+		return self.event_types
+
+	def subscribe_event(self, event):
+		pass
+
+	def __str__(self):
+		return repr("RawTextHandler.types=%s" % self.event_types)

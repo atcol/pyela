@@ -29,8 +29,11 @@ from pyela.el.util.strings import strip_chars, split_str, is_colour, el_colour_t
 from pyela.el.net.packets import ELPacket
 from pyela.el.net.elconstants import ELNetFromServer, ELNetToServer, ELConstants
 from pyela.el.net.channel import Channel
+from pyela.el.logic.eventmanagers import ELSimpleEventManager
+from pyela.el.logic.events import ELEventType, ELEvent
 
 log = logging.getLogger('pyela.el.net.parsers')
+em = ELSimpleEventManager()
 
 class MessageParser(object):
 	"""A message received from the Eternal Lands server"""
@@ -76,21 +79,22 @@ class BotRawTextMessageParser(MessageParser):
 	def parse(self, packet):
 		"""Parses a RAW_TEXT message"""
 		data = strip_chars(packet.data[2:])
-		log.debug("Data for RAW_TEXT packet %s: %s" % (packet.type, data))
+		if log.isEnabledFor(logging.DEBUG): log.debug("Data for RAW_TEXT packet %s: %s" % (packet.type, data))
 		name_str = "%s:" % self.session.name
 		if not data.startswith(name_str):
-			log.debug("Not a message from me! (%s)" % name_str)
-			log.debug("Found: %d" % (data.find(':') + 1))
+			if log.isEnabledFor(logging.DEBUG): log.debug("Not a message from me! (%s)" % name_str)
+			if log.isEnabledFor(logging.DEBUG): log.debug("Found: %d" % (data.find(':') + 1))
 			person = data[:data.find(':')]
 			data = data[data.find(':') + 2:]
-			log.debug("is message for me: (%s) %s" % (data, data.startswith("%s," % name_str[0].lower())))
+			if log.isEnabledFor(logging.DEBUG): log.debug("is message for me: (%s) %s" % (data, data.startswith("%s," % name_str[0].lower())))
 			if data.startswith("%s," % name_str[0].lower()):
 				words = data[data.find(",") + 1:].split()
-				log.debug("Data; %s" % data)
-				log.debug("Words for commands: %s" % words)
+				if log.isEnabledFor(logging.DEBUG): log.debug("Data; %s" % data)
+				if log.isEnabledFor(logging.DEBUG): log.debug("Words for commands: %s" % words)
 				if len(words) >= 1 and words[0].upper() in self.commands:
-					log.debug("Found command '%s', executing" % words[0].upper())
+					if log.isEnabledFor(logging.DEBUG): log.debug("Found command '%s', executing" % words[0].upper())
 					# data[1] is the params onwards to the command
+		em.raise_event(ELEvent(ELEventType(ELNetFromServer.RAW_TEXT)))
 	
 	def _do_who(self, person, params):
 		packets = []
@@ -118,7 +122,7 @@ class BotRawTextMessageParser(MessageParser):
 class ELAddActorMessageParser(MessageParser):
 	def parse(self, packet):
 		"""Parse an ADD_NEW_(ENHANCED)_ACTOR message"""
-		log.debug("New actor: %s" % packet)
+		if log.isEnabledFor(logging.DEBUG): log.debug("New actor: %s" % packet)
 		actor = ELActor()
 		actor.id, actor.x_pos, actor.y_pos, actor.z_pos, \
 		actor.z_rot, actor.type, frame, actor.max_health, \
@@ -152,7 +156,7 @@ class ELAddActorMessageParser(MessageParser):
 		#Find the actor's name's colour char
 		i = 0
 		while i < len(actor.name) and is_colour(actor.name[i]):
-			actor.name_colour = el_colour_to_rgb(actor.name[i])
+			actor.name_colour = el_colour_to_rgb(ord(actor.name[i]))
 			i += 1
 		if actor.name_colour[0] == -1:
 			#We didn't find any colour codes, use kind_of_actor
@@ -172,7 +176,7 @@ class ELAddActorMessageParser(MessageParser):
 
 		space = actor.name.rfind(' ')
 		if space != -1 and space > 0 and space+1 < len(actor.name) and is_colour(actor.name[space+1]):
-			log.debug("Actor has a guild. Parsing from '%s'" % actor.name)
+			if log.isEnabledFor(logging.DEBUG): log.debug("Actor has a guild. Parsing from '%s'" % actor.name)
 			# split the name into playername and guild
 			tokens = actor.name.rsplit(' ', 1)
 			actor.name = tokens[0]
@@ -193,7 +197,7 @@ class ELAddActorMessageParser(MessageParser):
 		if actor.id == self.session.own_actor_id:
 			self.session.own_actor = actor
 
-		log.debug("Actor parsed: %s, %s, %s, %s, %s, %s, %s, %s, %s, %s" % (actor.id, actor.x_pos, actor.y_pos, actor.z_pos, \
+		if log.isEnabledFor(logging.DEBUG): log.debug("Actor parsed: %s, %s, %s, %s, %s, %s, %s, %s, %s, %s" % (actor.id, actor.x_pos, actor.y_pos, actor.z_pos, \
 			actor.z_rot, actor.type, actor.max_health, \
 			actor.cur_health, actor.kind_of_actor, actor.name))
 		return []
@@ -208,8 +212,8 @@ class ELRemoveActorMessageParser(MessageParser):
 
 	def parse(self, packet):
 		"""Remove actor packet. Remove from self.session.actors dict"""
-		log.debug("Remove actor packet: '%s'" % packet.data)
-		log.debug("Actors: %s" % self.session.actors)
+		if log.isEnabledFor(logging.DEBUG): log.debug("Remove actor packet: '%s'" % packet.data)
+		if log.isEnabledFor(logging.DEBUG): log.debug("Actors: %s" % self.session.actors)
 		for actor_id in self._get_ids(packet.data):
 			if actor_id in self.session.actors:
 				del self.session.actors[actor_id]
@@ -220,7 +224,7 @@ class ELRemoveActorMessageParser(MessageParser):
 
 class ELRemoveAllActorsParser(MessageParser):
 	def parse(self, packet):
-		log.debug("Remove all actors packet")
+		if log.isEnabledFor(logging.DEBUG): log.debug("Remove all actors packet")
 		self.session.actors = {}
 		return []
 
@@ -233,7 +237,7 @@ class ELAddActorCommandParser(MessageParser):
 	_get_commands = staticmethod(_get_commands)
 
 	def parse(self, packet):
-		log.debug("Actor command packet: '%s'" % packet.data)
+		if log.isEnabledFor(logging.DEBUG): log.debug("Actor command packet: '%s'" % packet.data)
 		for actor_id, command in self._get_commands(packet.data):
 			if actor_id in self.session.actors:
 				self.session.actors[actor_id].handle_command(command)
@@ -241,7 +245,7 @@ class ELAddActorCommandParser(MessageParser):
 
 class ELYouAreParser(MessageParser):
 	def parse(self, packet):
-		log.debug("YouAre packet: '%s'" % packet.data)
+		if log.isEnabledFor(logging.DEBUG): log.debug("YouAre packet: '%s'" % packet.data)
 		id = struct.unpack('<H', packet.data)[0]
 		self.session.own_actor_id = id
 		if id in self.session.actors:
