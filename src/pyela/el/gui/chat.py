@@ -99,6 +99,7 @@ class ChatGUI(gtk.Window):
 			# login crendials entered
 			self.elc = ELConnection(l.user_txt.get_text(), l.passwd_txt.get_text(), l.host_txt.get_text(), int(l.port_txt.get_text()))
 			self.elc.session = ELSession(self.elc.username, self.elc.password)
+			self.tool_vbox.minimap.el_session = self.elc.session
 			self.elc.packet_handler = ChatGUIPacketHandler(self.elc.session)
 			self.elc.connect()
 			l.destroy()

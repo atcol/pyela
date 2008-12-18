@@ -194,8 +194,16 @@ class ELAddActorMessageParser(MessageParser):
 			actor.fighting = True
 
 		self.session.actors[actor.id] = actor
+		
+		event = ELEvent(ELEventType(ELNetFromServer.ADD_NEW_ACTOR))
+		event.data = actor
+		em.raise_event(event)
+		
 		if actor.id == self.session.own_actor_id:
 			self.session.own_actor = actor
+			event = ELEvent(ELEventType(ELNetFromServer.YOU_ARE))
+			event.data = actor
+			em.raise_event(event)
 
 		if log.isEnabledFor(logging.DEBUG): log.debug("Actor parsed: %s, %s, %s, %s, %s, %s, %s, %s, %s, %s" % (actor.id, actor.x_pos, actor.y_pos, actor.z_pos, \
 			actor.z_rot, actor.type, actor.max_health, \
@@ -215,6 +223,9 @@ class ELRemoveActorMessageParser(MessageParser):
 		if log.isEnabledFor(logging.DEBUG): log.debug("Remove actor packet: '%s'" % packet.data)
 		if log.isEnabledFor(logging.DEBUG): log.debug("Actors: %s" % self.session.actors)
 		for actor_id in self._get_ids(packet.data):
+			event = ELEvent(ELEventType(ELNetFromServer.REMOVE_ACTOR))
+			event.data = actor_id
+			em.raise_event(event)
 			if actor_id in self.session.actors:
 				del self.session.actors[actor_id]
 			if actor_id == self.session.own_actor_id:
@@ -224,8 +235,11 @@ class ELRemoveActorMessageParser(MessageParser):
 
 class ELRemoveAllActorsParser(MessageParser):
 	def parse(self, packet):
-		if log.isEnabledFor(logging.DEBUG): log.debug("Remove all actors packet")
+		event = ELEvent(ELEventType(ELNetFromServer.KILL_ALL_ACTORS))
+		em.raise_event(event)
+		
 		self.session.actors = {}
+		if log.isEnabledFor(logging.DEBUG): log.debug("Remove all actors packet")
 		return []
 
 class ELAddActorCommandParser(MessageParser):
@@ -241,6 +255,10 @@ class ELAddActorCommandParser(MessageParser):
 		for actor_id, command in self._get_commands(packet.data):
 			if actor_id in self.session.actors:
 				self.session.actors[actor_id].handle_command(command)
+	
+				event = ELEvent(ELEventType(ELNetFromServer.ADD_ACTOR_COMMAND))
+				event.data = {'actor': self.session.actors[actor_id], 'command': command}
+				em.raise_event(event)
 		return []
 
 class ELYouAreParser(MessageParser):
@@ -249,7 +267,11 @@ class ELYouAreParser(MessageParser):
 		id = struct.unpack('<H', packet.data)[0]
 		self.session.own_actor_id = id
 		if id in self.session.actors:
-			self.own_actor = self.session.actors[id]
+			self.session.own_actor = self.session.actors[id]
+			
+			event = ELEvent(ELEventType(ELNetFromServer.YOU_ARE))
+			event.data = self.own_actor
+			em.raise_event(event)
 		return []
 
 class ELGetActiveChannelsMessageParser(MessageParser):

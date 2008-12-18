@@ -19,7 +19,46 @@ import pygtk
 pygtk.require('2.0')
 import gtk
 import math
+from pyela.logic.eventhandlers import BaseEventHandler
+from pyela.el.logic.events import ELEventType
+from pyela.el.logic.eventmanagers import ELSimpleEventManager
+from pyela.el.net.elconstants import ELNetFromServer
 
+class MinimapEventHandler(BaseEventHandler):
+	def __init__(self, minimap):
+		self.minimap = minimap
+		self.event_types = [ELEventType(ELNetFromServer.ADD_NEW_ACTOR),
+				ELEventType(ELNetFromServer.REMOVE_ACTOR),
+				ELEventType(ELNetFromServer.KILL_ALL_ACTORS),
+				ELEventType(ELNetFromServer.ADD_ACTOR_COMMAND),
+				ELEventType(ELNetFromServer.YOU_ARE)]
+	
+	def notify(self, event):
+		if event.type.id == ELNetFromServer.ADD_NEW_ACTOR:
+			actor = event.data
+			if actor.id == self.minimap.el_session.own_actor_id:
+				self.minimap.set_own_pos(actor.x_pos, actor.y_pos)
+			actor.dot = MinimapDot(actor.x_pos, actor.y_pos)
+			actor.dot.colour = actor.name_colour
+			self.minimap.add_dot(actor.dot)
+		elif event.type.id == ELNetFromServer.REMOVE_ACTOR:
+			actor_id = event.data
+			self.minimap.del_dot(self.minimap.el_session.actors[actor_id].dot)
+		elif event.type.id == ELNetFromServer.KILL_ALL_ACTORS:
+			self.minimap.del_all_dots()
+		elif event.type.id == ELNetFromServer.ADD_ACTOR_COMMAND:
+			actor = event.data['actor']
+			actor.dot.x = actor.x_pos
+			actor.dot.y = actor.y_pos
+			if actor.id == self.minimap.el_session.own_actor_id:
+				self.minimap.set_own_pos(actor.x_pos, actor.y_pos)
+			self.minimap.redraw_canvas()
+		elif event.type.id == ELNetFromServer.YOU_ARE:
+			actor = event.data
+			self.minimap.set_own_pos(actor.x_pos, actor.y_pos)
+	
+	def get_event_types(self):
+		return self.event_types
 
 class MinimapDot:
 	"""MinimapDot represents a dot on the minimap"""
@@ -45,6 +84,7 @@ class Minimap(gtk.DrawingArea):
 		self.min_view_radius = 3 #Minimum number of tiles we can scroll to see
 		self.own_x = 0 #Your own X and Y coordinates
 		self.own_y = 0
+		ELSimpleEventManager().add_handler(MinimapEventHandler(self))
 	
 	def expose(self, widget, event):
 		"""Expose event handler"""
@@ -117,5 +157,4 @@ class Minimap(gtk.DrawingArea):
 	def del_all_dots(self):
 		del self.dots[:]
 		self.redraw_canvas()
-
 
