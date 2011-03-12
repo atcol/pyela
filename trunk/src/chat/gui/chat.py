@@ -24,13 +24,13 @@ import sys
 
 from pyela.el.net.connections import ELConnection
 from pyela.el.net.elconstants import ELConstants, ELNetFromServer, ELNetToServer
-from pyela.el.net.packethandlers import ChatGUIPacketHandler
+from net.packethandlers import ChatGUIPacketHandler
 from pyela.el.logic.session import ELSession
 from pyela.el.net.packets import ELPacket
 from pyela.el.util.strings import strip_chars
 from pyela.el.net.channel import Channel
-from pyela.el.gui.login import LoginGUI
-from pyela.el.gui.minimapwidget import Minimap
+from gui.login import LoginGUI
+from gui.minimapwidget import Minimap
 
 class ChatGUI(gtk.Window):
 	def __init__(self):
@@ -235,7 +235,7 @@ class ChatArea(gtk.ScrolledWindow):
 		self.chat_view = gtk.TextView(self.chat_buff)
 		self.chat_view.set_size_request(640, 480)
 		self.chat_view.set_editable(False)
-		self.chat_view.set_wrap_mode(gtk.WRAP_CHAR)
+		self.chat_view.set_wrap_mode(gtk.WRAP_WORD_CHAR)
 		self.chat_view.show()
 		self.add(self.chat_view)
 
