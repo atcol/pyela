@@ -48,18 +48,6 @@ class MessageParser(object):
 		"""
 		pass
 
-class GUIRawTextMessageParser(MessageParser):
-	def parse(self, packet):
-		if struct.unpack('<b', packet.data[0])[0] in \
-			(ELConstants.CHAT_CHANNEL1, ELConstants.CHAT_CHANNEL2, ELConstants.CHAT_CHANNEL3):
-			channel = int(struct.unpack('<b', packet.data[0])[0])
-			text = strip_chars(packet.data[1:])
-			self.session.msg_buf.extend(["\n%s" % (text.replace(']', " @ %s]" % \
-				self.session.channels[int(channel - ELConstants.CHAT_CHANNEL1)].number))])
-		else:
-			self.session.msg_buf.extend(["\n%s" % strip_chars(packet.data[1:])])
-		return []
-	
 class BotRawTextMessageParser(MessageParser):
 	"""Handles RAW_TEXT messages
 
