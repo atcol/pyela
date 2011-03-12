@@ -24,13 +24,56 @@ import sys
 
 from pyela.el.net.connections import ELConnection
 from pyela.el.net.elconstants import ELConstants, ELNetFromServer, ELNetToServer
-from net.packethandlers import ChatGUIPacketHandler
-from pyela.el.logic.session import ELSession
 from pyela.el.net.packets import ELPacket
+from pyela.el.net.packethandlers import ExtendedELPacketHandler
+from pyela.el.logic.session import ELSession
+from pyela.el.logic.events import ELEventType
+from pyela.el.logic.eventmanagers import ELSimpleEventManager
+from pyela.logic.eventhandlers import BaseEventHandler
 from pyela.el.util.strings import strip_chars
 from pyela.el.net.channel import Channel
 from gui.login import LoginGUI
 from gui.minimapwidget import Minimap
+
+class ChatGUIEventHandler(BaseEventHandler):
+	def __init__(self, gui):
+		self.gui = gui
+		self.event_types = [
+				ELEventType(ELNetFromServer.RAW_TEXT),
+				ELEventType(ELNetFromServer.GET_ACTIVE_CHANNELS),
+				ELEventType(ELNetFromServer.BUDDY_EVENT),
+				ELEventType(ELNetFromServer.LOG_IN_NOT_OK),
+				ELEventType(ELNetFromServer.YOU_DONT_EXIST)]
+
+	def notify(self, event):
+		if event.type.id == ELNetFromServer.RAW_TEXT:
+			#TODO: Colour handling, see http://python.zirael.org/e-gtk-textview2.html for examples
+			self.gui.append_chat("\n")
+			if event.data['channel'] in (ELConstants.CHAT_CHANNEL1, ELConstants.CHAT_CHANNEL2, ELConstants.CHAT_CHANNEL3):
+				channel = int(event.data['channel'])
+				text = event.data['text']
+				self.gui.append_chat([text.replace(']', " @ %s]" % self.gui.elc.session.channels[int(channel - ELConstants.CHAT_CHANNEL1)].number)])
+			else:
+				self.gui.append_chat([event.data['text']])
+		elif event.type.id == ELNetFromServer.GET_ACTIVE_CHANNELS:
+			self.gui.tool_vbox.channel_list.clear()
+			for chan in self.gui.elc.session.channels:
+				self.gui.tool_vbox.channel_list.append(["%s" % chan.number])
+		elif event.type.id == ELNetFromServer.BUDDY_EVENT:
+			self.gui.tool_vbox.buddy_list.clear()
+			for buddy in self.gui.elc.session.buddies:
+				self.gui.tool_vbox.buddy_list.append([buddy])
+		elif event.type.id == ELNetFromServer.LOG_IN_NOT_OK:
+			self.gui.append_chat([event.data['text']])
+			self.gui.elc.disconnect()
+			self.gui.do_login()
+		elif event.type.id == ELNetFromServer.YOU_DONT_EXIST:
+			self.gui.append_chat(['Incorrect username.'])
+			self.elc.disconnect()
+			self.do_login()
+
+	def get_event_types(self):
+		return self.event_types
 
 class ChatGUI(gtk.Window):
 	def __init__(self):
@@ -38,6 +81,7 @@ class ChatGUI(gtk.Window):
 		self.msgb_idx = 0
 		self.last_key = None # for // name completion
 		self.last_pm_to = ""
+		ELSimpleEventManager().add_handler(ChatGUIEventHandler(self))
 		self.__setup_gui()
 	
 	def __setup_gui(self):
@@ -100,7 +144,7 @@ class ChatGUI(gtk.Window):
 			self.elc = ELConnection(l.user_txt.get_text(), l.passwd_txt.get_text(), l.host_txt.get_text(), int(l.port_txt.get_text()))
 			self.elc.session = ELSession(self.elc.username, self.elc.password)
 			self.tool_vbox.minimap.el_session = self.elc.session
-			self.elc.packet_handler = ChatGUIPacketHandler(self.elc.session)
+			self.elc.packet_handler = ExtendedELPacketHandler(self.elc.session)
 			self.elc.connect()
 			l.destroy()
 		else:
@@ -109,7 +153,8 @@ class ChatGUI(gtk.Window):
 
 	def append_chat(self, msgs):
 		for msg in msgs:
-			self.chat_area.chat_buff.insert(self.chat_area.chat_buff.get_end_iter(), msg)
+			end = self.chat_area.chat_buff.get_end_iter()
+			self.chat_area.chat_buff.insert(end, msg)
 		self.chat_area.chat_view.scroll_to_mark(self.chat_area.chat_buff.get_insert(), 0)
 
 	def __keypress(self, widget, event=None):
@@ -173,30 +218,8 @@ class ChatGUI(gtk.Window):
 		self.input_hbox.msg_txt.grab_focus()
 
 	def __process_packets(self, widget, data=None):
-		self.elc.keep_alive()
 		packets = self.elc.recv()
 		self.elc.process_packets(packets)
-		for packet in packets:# act on the packets if need be
-			if packet.type == ELNetFromServer.RAW_TEXT:
-				self.append_chat(self.elc.session.msg_buf)
-				del self.elc.session.msg_buf[:]
-			elif packet.type == ELNetFromServer.GET_ACTIVE_CHANNELS:
-				# active channel, c1, c2, c3
-				self.tool_vbox.channel_list.clear()
-				for chan in self.elc.session.channels:
-					self.tool_vbox.channel_list.append(["%s" % chan.number])
-			elif packet.type == ELNetFromServer.BUDDY_EVENT:
-				self.tool_vbox.buddy_list.clear()
-				for buddy in self.elc.session.buddies:
-					self.tool_vbox.buddy_list.append([buddy])
-			elif packet.type == ELNetFromServer.LOG_IN_NOT_OK:
-				self.append_chat([strip_chars(packet.data)])
-				self.elc.disconnect()
-				self.do_login()
-			elif packet.type == ELNetFromServer.YOU_DONT_EXIST:
-				self.append_chat(['Incorrect username.'])
-				self.elc.disconnect()
-				self.do_login()
 		return True
 	
 	def find_buddy_row(self, buddy):

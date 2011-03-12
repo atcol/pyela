@@ -125,7 +125,7 @@ class Minimap(gtk.DrawingArea):
 
 		#Draw the big circle
 		context.arc(center_x, center_y, radius, 0, 2*math.pi)
-		context.set_source_rgb(0.2,0.8,0.1)
+		context.set_source_rgb(0.2,0.8,0.1) #Green
 		context.fill_preserve()
 		context.set_source_rgb(0,0,0)
 		context.stroke()
