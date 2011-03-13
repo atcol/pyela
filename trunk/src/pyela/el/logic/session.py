@@ -39,7 +39,6 @@ class Session(object):
 		self.password = password
 		self.login_msgs = login_msgs
 		self.logout_msgs = logout_msgs
-		self.msg_buf = []# global messages
 	
 	def get_login_messages(self):
 		"""returns a list of strings from the config for all login messages"""

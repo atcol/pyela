@@ -48,6 +48,17 @@ class MessageParser(object):
 		"""
 		pass
 
+class ELRawTextMessageParser(MessageParser):
+	"""Parses RAW_TEXT messages"""
+	def parse(self, packet):
+		event = ELEvent(ELEventType(ELNetFromServer.RAW_TEXT))
+		event.data = {}
+		event.data['channel'] = struct.unpack('<b', packet.data[0])[0]
+		event.data['text'] = strip_chars(packet.data[1:])
+		event.data['raw'] = packet.data[1:]
+		em.raise_event(event)
+		return []
+
 class BotRawTextMessageParser(MessageParser):
 	"""Handles RAW_TEXT messages
 
@@ -150,7 +161,7 @@ class ELAddActorMessageParser(MessageParser):
 			#We didn't find any colour codes, use kind_of_actor
 			if actor.kind_of_actor == ELConstants.NPC:
 				#NPC, bluish
-				#The real client colour is (0.3, 0.8, 1.0), but it's too green to see on the minimap
+				#The official client colour is (0.3, 0.8, 1.0), but it's too green to see on the minimap
 				actor.name_colour = (0.0, 0.0, 1.0)
 			elif actor.kind_of_actor in (ELConstants.HUMAN, ELConstants.COMPUTER_CONTROLLED_HUMAN):
 				#Regular player, white
@@ -266,6 +277,7 @@ class ELGetActiveChannelsMessageParser(MessageParser):
 	"""parse the GET_ACTIVE_CHANNELS message"""
 	def parse(self, packet):
 		del self.session.channels[:]
+		#Message structure: Active channel (1, 2 or 3), channel 1, channel 2, channel 3
 		chans = struct.unpack('<BIII', packet.data)
 		i = 0
 		active = chans[0]
@@ -273,17 +285,44 @@ class ELGetActiveChannelsMessageParser(MessageParser):
 			if c != 0:
 				self.session.channels.append(Channel(c, i == active))
 			i += 1
+		#Event to notify about the change in the channel list
+		event = ELEvent(ELEventType(ELNetFromServer.GET_ACTIVE_CHANNELS))
+		event.data = self.session.channels
+		em.raise_event(event)
 		return []
 
 class ELBuddyEventMessageParser(MessageParser):
 	"""Parse the BUDDY_EVENT message"""
-
 	def parse(self, packet):
-		event = ord(packet.data[0])# 1 is online, 0 offline
-		if event == 1:
+		change = ord(packet.data[0])# 1 is online, 0 offline
+		event = ELEvent(ELEventType(ELNetFromServer.BUDDY_EVENT))
+		event.data = {}
+		if change == 1:
+			#Buddy came online
 			buddy = str(strip_chars(packet.data[2:]))
 			self.session.buddies.append(buddy)
+			event.data['event'] = 'online'
 		else:
+			#Buddy went offline
 			buddy = str(strip_chars(packet.data[1:]))
 			self.session.buddies.remove(buddy)
+			event.data['event'] = 'offline'
+		event.data['name'] = buddy
+		em.raise_event(event)
 		return []
+
+class ELLoginFailedParser(MessageParser):
+	"""Parse the LOG_IN_NOT_OK message"""
+	def parse(self, packet):
+		event = ELEvent(ELEventType(ELNetFromServer.LOG_IN_NOT_OK))
+		event.data['text'] = strip_chars(packet.data)
+		event.data['raw'] = packet.data
+		em.raise_event(event)
+		return []
+
+class ELYouDontExistParser(MessageParser):
+	"""Parse the YOU_DONT_EXIST message"""
+	def parse(self, packet):
+		event = ELEvent(ELEventType(ELNetFromServer.YOU_DONT_EXIST))
+		em.raise_event(event)
+		return[]

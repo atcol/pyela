@@ -26,7 +26,9 @@ from pyela.el.net.packets import ELPacket
 from pyela.el.net.parsers import BotRawTextMessageParser, \
 	ELAddActorMessageParser, ELAddActorCommandParser, \
 	ELRemoveActorMessageParser, ELGetActiveChannelsMessageParser, \
-	ELBuddyEventMessageParser, ELRemoveAllActorsParser, ELYouAreParser
+	ELBuddyEventMessageParser, ELRemoveAllActorsParser, ELYouAreParser, \
+	ELRawTextMessageParser, ELBuddyEventMessageParser, ELLoginFailedParser, \
+	ELYouDontExistParser
 
 log = logging.getLogger('pyela.el.net.packethandlers')
 
@@ -53,6 +55,7 @@ class BaseELPacketHandler(BasePacketHandler):
 class ExtendedELPacketHandler(BaseELPacketHandler):
 	def __init__(self, session):
 		super(ExtendedELPacketHandler, self).__init__(session)
+		self.CALLBACKS[ELNetFromServer.RAW_TEXT] = ELRawTextMessageParser(self.session)
 		self.CALLBACKS[ELNetFromServer.ADD_NEW_ENHANCED_ACTOR] = ELAddActorMessageParser(self.session)
 		self.CALLBACKS[ELNetFromServer.ADD_NEW_ACTOR] = ELAddActorMessageParser(self.session)
 		self.CALLBACKS[ELNetFromServer.ADD_ACTOR_COMMAND] = ELAddActorCommandParser(self.session)
@@ -61,6 +64,8 @@ class ExtendedELPacketHandler(BaseELPacketHandler):
 		self.CALLBACKS[ELNetFromServer.YOU_ARE] = ELYouAreParser(self.session)
 		self.CALLBACKS[ELNetFromServer.GET_ACTIVE_CHANNELS] = ELGetActiveChannelsMessageParser(self.session)
 		self.CALLBACKS[ELNetFromServer.BUDDY_EVENT] = ELBuddyEventMessageParser(self.session)
+		self.CALLBACKS[ELNetFromServer.LOG_IN_NOT_OK] = ELLoginFailedParser(self.session)
+		self.CALLBACKS[ELNetFromServer.YOU_DONT_EXIST] = ELYouDontExistParser(self.session)
 
 class ELTestPacketHandler(BaseELPacketHandler):
 	"""A derivative of BasePacketHandler that watches for RAW_TEXT packets 
