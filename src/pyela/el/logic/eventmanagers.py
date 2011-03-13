@@ -44,7 +44,7 @@ class ELSimpleEventManager(object):
 			whose .type value is in event_handler.get_event_types(),
 			notify() will be called on this handler
 			"""
-			if log.isEnabledFor(logging.DEBUG): log.debug("received hander: %s"\
+			if log.isEnabledFor(logging.DEBUG): log.debug("received handler: %s"\
 				% event_handler)
 			# this might work
 			for type in event_handler.get_event_types():

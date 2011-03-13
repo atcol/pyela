@@ -59,6 +59,18 @@ def strip_chars(str):
 
 	return stripped_str
 
+def el_str_to_str(str):
+	"""Convert a string containing EL protocol characters (as in special_char_table) to a regular string, but maintain colour codes"""
+	out_str = ""
+	for char in str:
+		if is_special_char(char):
+			out_str += special_char_to_char(char)
+		else:
+			out_str += char
+	if ord(out_str[-1]) == 0:
+		out_str = out_str[:-1]
+	return out_str
+
 def split_str(str, max_len):
 	"""Split the given string into a list of strings small enough for RAW_TEXT messages
 		str - the string to split
