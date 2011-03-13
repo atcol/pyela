@@ -183,15 +183,31 @@ class ChatGUI(gtk.Window):
 	def __keypress(self, widget, event=None):
 		if event.keyval == gtk.keysyms.Return:
 			self.send_msg(None, None)
-			self.msg_buff.append(self.input_hbox.msg_txt.get_text())
+			return True
 		elif event.keyval == gtk.keysyms.Up:
-			if self.msgb_idx > 0 and self.msgb_idx < len(self.msg_buff):
-				self.msgb_idx -= 1
+			if self.msgb_idx == 0 and len(self.msg_buff) > 0:
+				#This is the first up-keypress, store what's in the input box as the first entry in the buffer
+				self.msg_buff.insert(0, self.input_hbox.msg_txt.get_text())
+				self.msgb_idx = 1
 				self.input_hbox.msg_txt.set_text(self.msg_buff[self.msgb_idx])
-		elif event.keyval == gtk.keysyms.Down:
-			if self.msgb_idx < len(self.msg_buff):
+			elif self.msgb_idx > 0 and self.msgb_idx < len(self.msg_buff)-1:
+				#Further browsing upwards in the buffer
 				self.msgb_idx += 1
 				self.input_hbox.msg_txt.set_text(self.msg_buff[self.msgb_idx])
+			#Position the cursor at the end of the input
+			self.input_hbox.msg_txt.set_position(self.input_hbox.msg_txt.get_text_length())
+			return True
+		elif event.keyval == gtk.keysyms.Down:
+			if self.msgb_idx > 1:
+				self.msgb_idx -= 1
+				self.input_hbox.msg_txt.set_text(self.msg_buff[self.msgb_idx])
+			elif self.msgb_idx == 1:
+				#We're at the bottom of the buffer, restore what was initially in the input box and remove it from the list of input
+				self.input_hbox.msg_txt.set_text(self.msg_buff.pop(0))
+				self.msgb_idx = 0
+			#Position the cursor at the end of the input
+			self.input_hbox.msg_txt.set_position(self.input_hbox.msg_txt.get_text_length())
+			return True
 		return False
 	
 	def send_msg(self, widget, data=None):
@@ -204,6 +220,12 @@ class ChatGUI(gtk.Window):
 				
 			self.elc.send(ELPacket(type, msg))
 			self.input_hbox.msg_txt.set_text("")
+			#input text buffer handling
+			if self.msgb_idx > 0:
+				#Remove any un-sent text from the input buffer
+				self.msg_buff.pop(0)
+			self.msgb_idx = 0
+			self.msg_buff.insert(0, msg)
 		return True
 	
 	def __keep_alive(self):
