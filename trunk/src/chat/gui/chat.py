@@ -30,7 +30,7 @@ from pyela.el.logic.session import ELSession
 from pyela.el.logic.events import ELEventType
 from pyela.el.logic.eventmanagers import ELSimpleEventManager
 from pyela.logic.eventhandlers import BaseEventHandler
-from pyela.el.util.strings import strip_chars
+from pyela.el.util.strings import strip_chars, el_colour_char_table, el_str_to_str, is_colour
 from pyela.el.net.channel import Channel
 from gui.login import LoginGUI
 from gui.minimapwidget import Minimap
@@ -47,14 +47,21 @@ class ChatGUIEventHandler(BaseEventHandler):
 
 	def notify(self, event):
 		if event.type.id == ELNetFromServer.RAW_TEXT:
-			#TODO: Colour handling, see http://python.zirael.org/e-gtk-textview2.html for examples
+			#TODO: Proper colour handling, see http://python.zirael.org/e-gtk-textview2.html for examples
 			self.gui.append_chat("\n")
+			text = el_str_to_str(event.data['raw'])
+			if is_colour(text[0]):
+				colour_code = ord(text[0])-127
+				tag = self.gui.gtk_el_colour_table[colour_code]
+			else:
+				tag = None
+			#Get rid of colour codes now that the colour information has been extracted
+			text = event.data['text']
 			if event.data['channel'] in (ELConstants.CHAT_CHANNEL1, ELConstants.CHAT_CHANNEL2, ELConstants.CHAT_CHANNEL3):
 				channel = int(event.data['channel'])
-				text = event.data['text']
-				self.gui.append_chat([text.replace(']', " @ %s]" % self.gui.elc.session.channels[int(channel - ELConstants.CHAT_CHANNEL1)].number)])
+				self.gui.append_chat([text.replace(']', " @ %s]" % self.gui.elc.session.channels[int(channel - ELConstants.CHAT_CHANNEL1)].number)], tag)
 			else:
-				self.gui.append_chat([event.data['text']])
+				self.gui.append_chat([event.data['text']], tag)
 		elif event.type.id == ELNetFromServer.GET_ACTIVE_CHANNELS:
 			self.gui.tool_vbox.channel_list.clear()
 			for chan in self.gui.elc.session.channels:
@@ -116,6 +123,9 @@ class ChatGUI(gtk.Window):
 		self.input_hbox.msg_txt.connect('key_press_event', self.__keypress)
 		self.input_hbox.send_btn.connect('clicked', self.send_msg)
 		self.vbox.pack_end(self.input_hbox, False, False, 0)
+		
+		#Create the el->gtk colour map
+		self.__build_colourtable()
 
 		# show the login gui to get the user credentials
 		self.do_login()
@@ -134,6 +144,16 @@ class ChatGUI(gtk.Window):
 		# setup the channel list
 		self.channels = []
 		gtk.main()
+	
+	def __build_colourtable(self):
+		"""Build a table of gtk textbuffer tags, mapping EL colour codes"""
+		self.gtk_el_colour_table = {}
+		for code,rgb in el_colour_char_table.items():
+			hexcode = "#%02x%02x%02x" % (rgb[0]*255,rgb[1]*255,rgb[2]*255)
+			if hexcode == "#ffffff":
+				#White is invisible on our white background, so fix that
+				hexcode = "#000000"
+			self.gtk_el_colour_table[code] = self.chat_area.chat_buff.create_tag("el_colour_%i"%code, foreground=hexcode)
 
 	def do_login(self):
 		l = LoginGUI(title="Login - Pyela Chat")
@@ -151,21 +171,24 @@ class ChatGUI(gtk.Window):
 			# quit
 			sys.exit(0)
 
-	def append_chat(self, msgs):
+	def append_chat(self, msgs, tag = None):
 		for msg in msgs:
 			end = self.chat_area.chat_buff.get_end_iter()
-			self.chat_area.chat_buff.insert(end, msg)
+			if tag != None:
+				self.chat_area.chat_buff.insert_with_tags(end, msg, tag)
+			else:
+				self.chat_area.chat_buff.insert(end, msg)
 		self.chat_area.chat_view.scroll_to_mark(self.chat_area.chat_buff.get_insert(), 0)
 
 	def __keypress(self, widget, event=None):
 		if event.keyval == gtk.keysyms.Return:
 			self.send_msg(None, None)
 			self.msg_buff.append(self.input_hbox.msg_txt.get_text())
-		elif event.keyval == gtk.keysyms.uparrow:
+		elif event.keyval == gtk.keysyms.Up:
 			if self.msgb_idx > 0 and self.msgb_idx < len(self.msg_buff):
 				self.msgb_idx -= 1
 				self.input_hbox.msg_txt.set_text(self.msg_buff[self.msgb_idx])
-		elif event.keyval == gtk.keysyms.downarrow:
+		elif event.keyval == gtk.keysyms.Down:
 			if self.msgb_idx < len(self.msg_buff):
 				self.msgb_idx += 1
 				self.input_hbox.msg_txt.set_text(self.msg_buff[self.msgb_idx])
