@@ -136,7 +136,7 @@ class ChatGUI(gtk.Window):
 		gobject.timeout_add(15000, self.__keep_alive)
 
 		self.add(self.vbox)
-		self.set_title("%s@%s:%s - Pyela Chat" % (self.elc.username, self.elc.host, self.elc.port))
+		self.set_title("%s@%s:%s - Pyela Chat" % (self.elc.session.name, self.elc.host, self.elc.port))
 		self.show_all()
 		self.append_chat(['Welcome to Pyela-Chat, part of the Pyela toolset. Visit pyela.googlecode.com for more information'])
 		self.input_hbox.msg_txt.grab_focus()
@@ -159,12 +159,12 @@ class ChatGUI(gtk.Window):
 		l = LoginGUI(title="Login - Pyela Chat")
 		response = l.run()
 
-		if response == 0:
+		if response == 0: #TODO: this 0 should be a constant from gtk
 			# login crendials entered
-			self.elc = ELConnection(l.user_txt.get_text(), l.passwd_txt.get_text(), l.host_txt.get_text(), int(l.port_txt.get_text()))
-			self.elc.session = ELSession(self.elc.username, self.elc.password)
+			session = ELSession(l.user_txt.get_text(), l.passwd_txt.get_text())
+			self.elc = ELConnection(session, l.host_txt.get_text(), int(l.port_txt.get_text()))
 			self.tool_vbox.minimap.el_session = self.elc.session
-			self.elc.packet_handler = ExtendedELPacketHandler(self.elc.session)
+			self.elc.packet_handler = ExtendedELPacketHandler(self.elc)
 			self.elc.connect()
 			l.destroy()
 		else:

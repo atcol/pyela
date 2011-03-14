@@ -54,7 +54,7 @@ class ELSession(Session):
 	"""
 
 	def __init__(self, username, password, login_msgs=[], logout_msgs=[]):
-		super(ELSession, self).__init__(username, password, login_msgs=[], logout_msgs=[])
+		super(ELSession, self).__init__(username, password, login_msgs, logout_msgs)
 		self.actors = {}
 		self.channels = []
 		self.buddies = []

@@ -28,9 +28,7 @@ from pyela.el.net.elconstants import ELNetFromServer, ELNetToServer
 from pyela.el.net.packets import ELPacket
 from pyela.el.logic.session import ELSession
 from pyela.el.common.exceptions import ConnectionException, ManagerException
-from pyela.el.net.packethandlers import ELTestPacketHandler
 from pyela.el.logic.eventmanagers import ELSimpleEventManager
-from pyela.el.logic.eventhandlers import RawTextEventHandler
 
 log = logging.getLogger('pyela.el.net.managers')
 
@@ -74,14 +72,14 @@ class MultiConnectionManager(ConnectionManager):
 		"""Creates an instane with the given config, and the given connections"""
 		self._p = select.poll()
 		self._em = ELSimpleEventManager()
-		self.__map_events()
+		self._map_events()
 		if None not in connections:
 			self.connections = connections
 		else:
 			raise ManagerException('None cannot be a connection')
 
-	def __map_events(self):
-		self._em.add_handler(RawTextEventHandler())
+	def _map_events(self):
+		pass
 
 	def __set_opt(self, val):
 		log.info("Something's trying to set my output queue. Blocked!")
@@ -95,7 +93,7 @@ class MultiConnectionManager(ConnectionManager):
 
 	def process(self):
 		"""Overrides super's process impl to govern all the connections """
-		self.__connect_all()
+		self.__connect_all() #TODO: Does this belong here?
 
 		if len(self.connections) > 0:
 			self.__register_connections()
@@ -144,7 +142,7 @@ class MultiConnectionManager(ConnectionManager):
 		# connection retries sleep
 		try:
 			if log.isEnabledFor(logging.DEBUG): log.debug("Sleeping 5 seconds before reconnect")
-			time.sleep(5)
+			time.sleep(5) #TODO: This will block everything for 5 seconds. Not good.
 			#con.con_tries = 0
 			return con.reconnect()
 		except ConnectionException, ce:
