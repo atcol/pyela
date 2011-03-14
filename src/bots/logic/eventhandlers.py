@@ -100,7 +100,6 @@ class BotRawTextEventHandler(BaseEventHandler):
 		return [ELPacket(ELNetToServer.RAW_TEXT, "%s: %s" % (person, time.asctime()))]
 
 	def _do_lick(self, session, person, params):
-		print params
 		if len(params) > 1:
 			return [ELPacket(ELNetToServer.RAW_TEXT, ":licks %s" % params[1])]
 		else:

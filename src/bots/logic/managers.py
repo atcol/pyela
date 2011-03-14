@@ -20,5 +20,4 @@ from logic.eventhandlers import BotRawTextEventHandler
 
 class BotMultiConnectionManager(MultiConnectionManager):
 	def _map_events(self):
-		print "mooooooo"
 		self._em.add_handler(BotRawTextEventHandler())
