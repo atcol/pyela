@@ -23,9 +23,9 @@ import struct
 from pyela.net.packethandlers import BasePacketHandler
 from pyela.el.net.elconstants import ELNetFromServer, ELNetToServer
 from pyela.el.net.packets import ELPacket
-from pyela.el.net.parsers import BotRawTextMessageParser, \
-	ELAddActorMessageParser, ELAddActorCommandParser, \
-	ELRemoveActorMessageParser, ELGetActiveChannelsMessageParser, \
+from pyela.el.net.parsers import ELAddActorMessageParser, \
+	ELAddActorCommandParser, ELRemoveActorMessageParser, \
+	ELGetActiveChannelsMessageParser, \
 	ELBuddyEventMessageParser, ELRemoveAllActorsParser, ELYouAreParser, \
 	ELRawTextMessageParser, ELBuddyEventMessageParser, ELLoginFailedParser, \
 	ELYouDontExistParser
@@ -36,9 +36,13 @@ class BaseELPacketHandler(BasePacketHandler):
 	"""Defines base functionality for handling an ELConnection.
 	"""
 
-	def __init__(self, session):
+	def __init__(self, connection):
+		"""
+			Parameters:
+			connection - the ELConnection that this packet handler handles packets for
+		"""
 		super(BaseELPacketHandler, self).__init__()
-		self.session = session
+		self.connection = connection
 		self.CALLBACKS = {}
 
 	def process_packets(self, packets):
@@ -47,43 +51,25 @@ class BaseELPacketHandler(BasePacketHandler):
 			log.debug("Message: %s?, %d, type=%s" % \
 				(ELNetFromServer.to_identifier(ELNetFromServer(), int(packet.type)), packet.type, type(packet)))
 			if packet.type in self.CALLBACKS:
-				events = self.CALLBACKS[packet.type].parse(packet)
+				events.extend(self.CALLBACKS[packet.type].parse(packet))
 		return events
 
 ## ExtendedELPacketHandler is the same as above, except it has all the
-## message parsers related to session handling set up
+## message parsers related to connection/session handling set up
 class ExtendedELPacketHandler(BaseELPacketHandler):
-	def __init__(self, session):
-		super(ExtendedELPacketHandler, self).__init__(session)
-		self.CALLBACKS[ELNetFromServer.RAW_TEXT] = ELRawTextMessageParser(self.session)
-		self.CALLBACKS[ELNetFromServer.ADD_NEW_ENHANCED_ACTOR] = ELAddActorMessageParser(self.session)
-		self.CALLBACKS[ELNetFromServer.ADD_NEW_ACTOR] = ELAddActorMessageParser(self.session)
-		self.CALLBACKS[ELNetFromServer.ADD_ACTOR_COMMAND] = ELAddActorCommandParser(self.session)
-		self.CALLBACKS[ELNetFromServer.REMOVE_ACTOR] = ELRemoveActorMessageParser(self.session)
-		self.CALLBACKS[ELNetFromServer.KILL_ALL_ACTORS] = ELRemoveAllActorsParser(self.session)
-		self.CALLBACKS[ELNetFromServer.YOU_ARE] = ELYouAreParser(self.session)
-		self.CALLBACKS[ELNetFromServer.GET_ACTIVE_CHANNELS] = ELGetActiveChannelsMessageParser(self.session)
-		self.CALLBACKS[ELNetFromServer.BUDDY_EVENT] = ELBuddyEventMessageParser(self.session)
-		self.CALLBACKS[ELNetFromServer.LOG_IN_NOT_OK] = ELLoginFailedParser(self.session)
-		self.CALLBACKS[ELNetFromServer.YOU_DONT_EXIST] = ELYouDontExistParser(self.session)
-
-class ELTestPacketHandler(BaseELPacketHandler):
-	"""A derivative of BasePacketHandler that watches for RAW_TEXT packets 
-	from an ELConnection and responds to their content
+	""" ExtendedELPacketHandler is the same as BaseELPacketHandler, except it
+	has all the message parsers related to session handling set up
 	"""
-
-	def __init__(self, session):
-		super(ELTestPacketHandler, self).__init__(session)
-		self.session = session
-		self.CALLBACKS = {}
-		self.__setup_callbacks()
-
-	def __setup_callbacks(self):
-		self.CALLBACKS[ELNetFromServer.RAW_TEXT] = BotRawTextMessageParser(self.session)
-		self.CALLBACKS[ELNetFromServer.ADD_NEW_ENHANCED_ACTOR] = ELAddActorMessageParser(self.session)
-		self.CALLBACKS[ELNetFromServer.ADD_NEW_ACTOR] = ELAddActorMessageParser(self.session)
-		self.CALLBACKS[ELNetFromServer.ADD_ACTOR_COMMAND] = ELAddActorCommandParser(self.session)
-		self.CALLBACKS[ELNetFromServer.REMOVE_ACTOR] = ELRemoveActorMessageParser(self.session)
-		self.CALLBACKS[ELNetFromServer.KILL_ALL_ACTORS] = ELRemoveAllActorsParser(self.session)
-		self.CALLBACKS[ELNetFromServer.YOU_ARE] = ELYouAreParser(self.session)
-		self.CALLBACKS[ELNetFromServer.GET_ACTIVE_CHANNELS] = ELGetActiveChannelsMessageParser(self.session)
+	def __init__(self, connection):
+		super(ExtendedELPacketHandler, self).__init__(connection)
+		self.CALLBACKS[ELNetFromServer.RAW_TEXT] = ELRawTextMessageParser(self.connection)
+		self.CALLBACKS[ELNetFromServer.ADD_NEW_ENHANCED_ACTOR] = ELAddActorMessageParser(self.connection)
+		self.CALLBACKS[ELNetFromServer.ADD_NEW_ACTOR] = ELAddActorMessageParser(self.connection)
+		self.CALLBACKS[ELNetFromServer.ADD_ACTOR_COMMAND] = ELAddActorCommandParser(self.connection)
+		self.CALLBACKS[ELNetFromServer.REMOVE_ACTOR] = ELRemoveActorMessageParser(self.connection)
+		self.CALLBACKS[ELNetFromServer.KILL_ALL_ACTORS] = ELRemoveAllActorsParser(self.connection)
+		self.CALLBACKS[ELNetFromServer.YOU_ARE] = ELYouAreParser(self.connection)
+		self.CALLBACKS[ELNetFromServer.GET_ACTIVE_CHANNELS] = ELGetActiveChannelsMessageParser(self.connection)
+		self.CALLBACKS[ELNetFromServer.BUDDY_EVENT] = ELBuddyEventMessageParser(self.connection)
+		self.CALLBACKS[ELNetFromServer.LOG_IN_NOT_OK] = ELLoginFailedParser(self.connection)
+		self.CALLBACKS[ELNetFromServer.YOU_DONT_EXIST] = ELYouDontExistParser(self.connection)

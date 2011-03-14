@@ -46,7 +46,7 @@ class ELSimpleEventManager(object):
 			"""
 			if log.isEnabledFor(logging.DEBUG): log.debug("received handler: %s"\
 				% event_handler)
-			# this might work
+
 			for type in event_handler.get_event_types():
 				if self._handlers.has_key(type.id):
 					self._handlers[type.id].append(event_handler)

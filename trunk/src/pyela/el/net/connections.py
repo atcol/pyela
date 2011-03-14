@@ -36,8 +36,9 @@ log = logging.getLogger('pyela.el.net.connections')
 
 def get_elconnection_by_config(config):
 	"""Create a connection by using the ConfigParser instance, config."""
+	session = get_elsession_by_config(config)
 	elc = ELConnection(
-		config.get('login', 'username'), config.get('login', 'password'), \
+		session, \
 		host=config.get('login', 'host'), port=config.getint('login', 'port') \
 	)
 	elc.set_properties(config)
@@ -64,16 +65,15 @@ class ELConnection(BaseConnection):
 							BasePacketHandler
 	"""
 
-	def __init__(self, username, password, host='game.eternal-lands.com', port=2001,\
-		packet_handler=BasePacketHandler(), MAX_CON_TRIES=3, MAX_LAST_SEND_SECS=18):
+	def __init__(self, session, host='game.eternal-lands.com', port=2001,\
+		packet_handler=None, MAX_CON_TRIES=3, MAX_LAST_SEND_SECS=18):
 		"""Create an instance with the given username and password, 
 		as well as the hostname and port.
 		This constructor will assume default values for attributes 
 		for all but the username and password
 		
 		Parameters:
-			username - the EL username
-			password - the password
+			session  - The session object for this connection, must have username and password set
 			host	 - the hostname, default 'game.eternal-lands.com'
 			port	 - the port, default 2001
 			packet_handler - the packet/message handler, defaults to BasePacketHandler()
@@ -84,15 +84,17 @@ class ELConnection(BaseConnection):
 		"""
 		self.host = host
 		self.port = port
-		self.username = username
-		self.password = password
+		self.session = session
 		self.status = DISCONNECTED
 		self.socket = None
 		self.last_send = None #property(fset=__set_last_send)
 		self.con_tries = 0
 		self.MAX_CON_TRIES = MAX_CON_TRIES
 		self.MAX_LAST_SEND_SECS = MAX_LAST_SEND_SECS
-		self.packet_handler = packet_handler
+		if packet_handler == None:
+			self.packet_handler = BasePacketHandler() #TODO: Should this be BasePacketHandler or BaseELPacketHandler?
+		else:
+			self.packet_handler = packet_handler
 		self._inp = ""# this is temporary
 
 	def set_properties(self, config):
@@ -100,14 +102,12 @@ class ELConnection(BaseConnection):
 		config must be an instance of ConfigParser.
 		self.config is set to config before parsing
 		"""
-		self.config = config
-		self.username = self.config.get('login', 'username')
-		self.password = self.config.get('login', 'password')
+		self.config = config #TODO: Should this be stored here? It's never used after this
+		self.session = get_elsession_by_config(config)
 		self.host = self.config.get('login', 'host')
 		self.port = self.config.getint('login', 'port')
 		self.MAX_CON_TRIES = config.getint('actions', 'max_recon')
 		self.MAX_LAST_SEND_SECS = config.getint('actions', 'max_send_secs')
-		self.session = get_elsession_by_config(config)
 		self._inp = "" # input buffer, for incomplete messages
 	
 	def fileno(self):
@@ -145,7 +145,7 @@ class ELConnection(BaseConnection):
 		if self.socket is None:
 			self.__setup_socket()
 
-		login_str = '%s %s\0' % (self.username, self.password)
+		login_str = '%s %s\0' % (self.session.name, self.session.password)
 		try:
 			log.debug("port: %s" % type(self.port))
 			log.info('Connecting to %s:%d' % (self.host, self.port))
@@ -227,4 +227,4 @@ class ELConnection(BaseConnection):
 		self.last_send = t
 
 	def __str__(self):
-		return "%s @ %s:%d" % (self.username, self.host, self.port)
+		return "%s @ %s:%d" % (self.session.name, self.host, self.port)

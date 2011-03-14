@@ -38,9 +38,9 @@ em = ELSimpleEventManager()
 class MessageParser(object):
 	"""A message received from the Eternal Lands server"""
 
-	def __init__(self, session):
+	def __init__(self, connection):
 		"""The session should be an instance of ELSession"""
-		self.session = session
+		self.connection = connection
 	
 	def parse(self, packet):
 		"""Parse the given packet and return a list of Packet
@@ -53,70 +53,12 @@ class ELRawTextMessageParser(MessageParser):
 	def parse(self, packet):
 		event = ELEvent(ELEventType(ELNetFromServer.RAW_TEXT))
 		event.data = {}
+		event.data['connection'] = self.connection
 		event.data['channel'] = struct.unpack('<b', packet.data[0])[0]
 		event.data['text'] = strip_chars(packet.data[1:])
 		event.data['raw'] = packet.data[1:]
 		em.raise_event(event)
 		return []
-
-class BotRawTextMessageParser(MessageParser):
-	"""Handles RAW_TEXT messages
-
-	Attributes:
-		commands - a dict of command name ('who', 'inv') and the 
-					respective callback to use
-	"""
-
-	def __init__(self, session):
-		super(BotRawTextMessageParser, self).__init__(session)
-		self.commands = {}
-		self.commands['WHO'] = self._do_who
-		self.commands['HI'] = self._do_hi
-		self.commands['TIME'] = self._do_time
-		self.commands['LICK'] = self._do_lick
-	
-	def parse(self, packet):
-		"""Parses a RAW_TEXT message"""
-		data = strip_chars(packet.data[2:])
-		if log.isEnabledFor(logging.DEBUG): log.debug("Data for RAW_TEXT packet %s: %s" % (packet.type, data))
-		name_str = "%s:" % self.session.name
-		if not data.startswith(name_str):
-			if log.isEnabledFor(logging.DEBUG): log.debug("Not a message from me! (%s)" % name_str)
-			if log.isEnabledFor(logging.DEBUG): log.debug("Found: %d" % (data.find(':') + 1))
-			person = data[:data.find(':')]
-			data = data[data.find(':') + 2:]
-			if log.isEnabledFor(logging.DEBUG): log.debug("is message for me: (%s) %s" % (data, data.startswith("%s," % name_str[0].lower())))
-			if data.startswith("%s," % name_str[0].lower()):
-				words = data[data.find(",") + 1:].split()
-				if log.isEnabledFor(logging.DEBUG): log.debug("Data; %s" % data)
-				if log.isEnabledFor(logging.DEBUG): log.debug("Words for commands: %s" % words)
-				if len(words) >= 1 and words[0].upper() in self.commands:
-					if log.isEnabledFor(logging.DEBUG): log.debug("Found command '%s', executing" % words[0].upper())
-					# data[1] is the params onwards to the command
-		em.raise_event(ELEvent(ELEventType(ELNetFromServer.RAW_TEXT)))
-	
-	def _do_who(self, person, params):
-		packets = []
-		actors_str = ""
-		for actor in self.session.actors.values():
-			actors_str += "%s, " % actor
-		actors_strs = split_str(actors_str, 157) 
-		for str in actors_strs:
-			packets.append(ELPacket(ELNetToServer.RAW_TEXT, str))
-
-		return packets
-	
-	def _do_hi(self, person, params):
-		return [ELPacket(ELNetToServer.RAW_TEXT, "Hi there, %s :D" % person)]
-
-	def _do_time(self, person, params):
-		return [ELPacket(ELNetToServer.RAW_TEXT, "%s: %s" % (person, time.asctime()))]
-	
-	def _do_lick(self, person, params):
-		if len(words) > 1:
-			return [ELPacket(ELNetToServer.RAW_TEXT, ":licks %s" % words[0])]
-		else:
-			return [ELPacket(ELNetToServer.RAW_TEXT, "...I'm not going to lick the air...")]
 
 class ELAddActorMessageParser(MessageParser):
 	def parse(self, packet):
@@ -139,15 +81,25 @@ class ELAddActorMessageParser(MessageParser):
 		else:
 			actor.name = packet.data[17:]
 		
-		#The end of name is a \0, and there _might_ be two more bytes
+		#The end of name is a \0, and there _might_ be two OR three more bytes
 		# containing actor-scale info.
-		if actor.name[-3] == '\0':
-			#There are two more bytes after the name,
-			# the actor scaling bytes
-			unpacked = struct.unpack('<H', actor.name[-2:])
+		name_end = actor.name.find('\0')
+		if name_end < len(actor.name)-2:
+			#There are two OR three more bytes after the name,
+			# the actor scaling bytes and possibly the attachment type
+			unpacked = struct.unpack('<H', actor.name[name_end+1:name_end+3])
 			actor.scale = unpacked[0]
 			#actor.scale = float(scale)/ELConstants.ACTOR_SCALE_BASE
-			actor.name = actor.name[:-3]
+			if len(actor.name) > name_end+3:
+				pass
+				#TODO: The actor class has no attachment_type member (yet)
+				#      The below code is tested and extracts the correct information
+				#actor.attachment_type = struct.unpack('B', actor.name[name_end+3])[0]
+				#if actor.attachment_type > 0 and actor.attachment_type < 255:
+				#	##ON A HORSE!!
+				#else:
+				#	actor.attachment_type = 0 # The server sends either 255 or 0 if we're not on a horse
+			actor.name = actor.name[:name_end]
 		else:
 			actor.scale = 1
 			actor.name = actor.name[:-1]
@@ -192,14 +144,14 @@ class ELAddActorMessageParser(MessageParser):
 		elif frame in (ELConstants.PAIN1, ELConstants.PAIN2):
 			actor.fighting = True
 
-		self.session.actors[actor.id] = actor
+		self.connection.session.actors[actor.id] = actor
 		
 		event = ELEvent(ELEventType(ELNetFromServer.ADD_NEW_ACTOR))
-		event.data = actor
+		event.data = actor #TODO: add connection to event data
 		em.raise_event(event)
 		
-		if actor.id == self.session.own_actor_id:
-			self.session.own_actor = actor
+		if actor.id == self.connection.session.own_actor_id:
+			self.connection.session.own_actor = actor
 			event = ELEvent(ELEventType(ELNetFromServer.YOU_ARE))
 			event.data = actor
 			em.raise_event(event)
@@ -218,26 +170,27 @@ class ELRemoveActorMessageParser(MessageParser):
 	_get_ids = staticmethod(_get_ids)
 
 	def parse(self, packet):
-		"""Remove actor packet. Remove from self.session.actors dict"""
+		"""Remove actor packet. Remove from self.connection.session.actors dict"""
 		if log.isEnabledFor(logging.DEBUG): log.debug("Remove actor packet: '%s'" % packet.data)
-		if log.isEnabledFor(logging.DEBUG): log.debug("Actors: %s" % self.session.actors)
+		if log.isEnabledFor(logging.DEBUG): log.debug("Actors: %s" % self.connection.session.actors)
 		for actor_id in self._get_ids(packet.data):
 			event = ELEvent(ELEventType(ELNetFromServer.REMOVE_ACTOR))
-			event.data = actor_id
+			event.data = actor_id #TODO: Add connection to event.data
 			em.raise_event(event)
-			if actor_id in self.session.actors:
-				del self.session.actors[actor_id]
-			if actor_id == self.session.own_actor_id:
-				self.session.own_actor_id = -1
-				self.session.own_actor = None
+			if actor_id in self.connection.session.actors:
+				del self.connection.session.actors[actor_id]
+			if actor_id == self.connection.session.own_actor_id:
+				self.connection.session.own_actor_id = -1
+				self.connection.session.own_actor = None
 		return []
 
 class ELRemoveAllActorsParser(MessageParser):
 	def parse(self, packet):
 		event = ELEvent(ELEventType(ELNetFromServer.KILL_ALL_ACTORS))
+		event.data = {'connection': self.connection}
 		em.raise_event(event)
 		
-		self.session.actors = {}
+		self.connection.session.actors = {}
 		if log.isEnabledFor(logging.DEBUG): log.debug("Remove all actors packet")
 		return []
 
@@ -252,11 +205,11 @@ class ELAddActorCommandParser(MessageParser):
 	def parse(self, packet):
 		if log.isEnabledFor(logging.DEBUG): log.debug("Actor command packet: '%s'" % packet.data)
 		for actor_id, command in self._get_commands(packet.data):
-			if actor_id in self.session.actors:
-				self.session.actors[actor_id].handle_command(command)
+			if actor_id in self.connection.session.actors:
+				self.connection.session.actors[actor_id].handle_command(command)
 	
 				event = ELEvent(ELEventType(ELNetFromServer.ADD_ACTOR_COMMAND))
-				event.data = {'actor': self.session.actors[actor_id], 'command': command}
+				event.data = {'actor': self.connection.session.actors[actor_id], 'command': command, 'connection': self.connection}
 				em.raise_event(event)
 		return []
 
@@ -264,30 +217,30 @@ class ELYouAreParser(MessageParser):
 	def parse(self, packet):
 		if log.isEnabledFor(logging.DEBUG): log.debug("YouAre packet: '%s'" % packet.data)
 		id = struct.unpack('<H', packet.data)[0]
-		self.session.own_actor_id = id
-		if id in self.session.actors:
-			self.session.own_actor = self.session.actors[id]
+		self.connection.session.own_actor_id = id
+		if id in self.connection.session.actors:
+			self.connection.session.own_actor = self.connection.session.actors[id]
 			
 			event = ELEvent(ELEventType(ELNetFromServer.YOU_ARE))
-			event.data = self.own_actor
+			event.data = self.connection.session.own_actor #TODO: Add connection to event.data
 			em.raise_event(event)
 		return []
 
 class ELGetActiveChannelsMessageParser(MessageParser):
 	"""parse the GET_ACTIVE_CHANNELS message"""
 	def parse(self, packet):
-		del self.session.channels[:]
+		del self.connection.session.channels[:]
 		#Message structure: Active channel (1, 2 or 3), channel 1, channel 2, channel 3
 		chans = struct.unpack('<BIII', packet.data)
 		i = 0
 		active = chans[0]
 		for c in chans[1:]:
 			if c != 0:
-				self.session.channels.append(Channel(c, i == active))
+				self.connection.session.channels.append(Channel(c, i == active))
 			i += 1
 		#Event to notify about the change in the channel list
 		event = ELEvent(ELEventType(ELNetFromServer.GET_ACTIVE_CHANNELS))
-		event.data = self.session.channels
+		event.data = self.connection.session.channels #TODO: add connection to event.data
 		em.raise_event(event)
 		return []
 
@@ -300,14 +253,15 @@ class ELBuddyEventMessageParser(MessageParser):
 		if change == 1:
 			#Buddy came online
 			buddy = str(strip_chars(packet.data[2:]))
-			self.session.buddies.append(buddy)
+			self.connection.session.buddies.append(buddy)
 			event.data['event'] = 'online'
 		else:
 			#Buddy went offline
 			buddy = str(strip_chars(packet.data[1:]))
-			self.session.buddies.remove(buddy)
+			self.connection.session.buddies.remove(buddy)
 			event.data['event'] = 'offline'
 		event.data['name'] = buddy
+		event.data['connection'] = self.connection
 		em.raise_event(event)
 		return []
 
@@ -317,6 +271,7 @@ class ELLoginFailedParser(MessageParser):
 		event = ELEvent(ELEventType(ELNetFromServer.LOG_IN_NOT_OK))
 		event.data['text'] = strip_chars(packet.data)
 		event.data['raw'] = packet.data
+		event.data['connection'] = self.connection
 		em.raise_event(event)
 		return []
 
@@ -324,5 +279,7 @@ class ELYouDontExistParser(MessageParser):
 	"""Parse the YOU_DONT_EXIST message"""
 	def parse(self, packet):
 		event = ELEvent(ELEventType(ELNetFromServer.YOU_DONT_EXIST))
+		event.data = {}
+		event.data['connection'] = self.connection
 		em.raise_event(event)
 		return[]

@@ -20,10 +20,13 @@ import logging as log
 import signal
 import sys
 
+import sys,os
+sys.path.append(os.getcwd()+'/..') #TODO: This is a hack, fix
+
 from pyela.el.net.connections import get_elconnection_by_config, ELConnection
-from pyela.el.logic.managers import MultiConnectionManager
+from logic.managers import BotMultiConnectionManager
 from pyela.el.logic.session import ELSession, get_elsession_by_config
-from pyela.el.net.packethandlers import ELTestPacketHandler
+from pyela.el.net.packethandlers import ExtendedELPacketHandler
 
 connections = []
 
@@ -50,16 +53,16 @@ def main():
 	sys_cfg = ConfigParser.ConfigParser()# system-wide settings
 	sys_cfg.read('system.ini')
 
-	for file in os.listdir('./bots'):
-		if file.endswith(".ini"):
+	for file in os.listdir('.'):
+		if file.endswith(".ini") and file != "system.ini":
 			cfg = ConfigParser.ConfigParser()
-			cfg.read("bots/%s" % file)
+			cfg.read("./%s" % file)
 			con = get_elconnection_by_config(cfg)
-			con.packet_handler = ELTestPacketHandler(con.session)
+			con.packet_handler = ExtendedELPacketHandler(con)
 			connections.append(con)
 	
 	log.basicConfig(level=getattr(log, sys_cfg.get('logging', 'level').upper()), format="%(asctime)s %(name)s %(levelname)s: %(message)s", filename=sys_cfg.get('logging', 'filename'))
-	elcm = MultiConnectionManager(connections)
+	elcm = BotMultiConnectionManager(connections)
 	elcm.process()
 
 if __name__ == '__main__':
