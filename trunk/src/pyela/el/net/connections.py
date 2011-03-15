@@ -112,10 +112,12 @@ class ELConnection(BaseConnection):
 	
 	def fileno(self):
 		"""Allows this object to be used with poll() etc"""
-		if not self.is_connected():
-			raise ConnectionException("Instance not connected to remote server, no fileno available")
+		#This will break poll() in MultiConnectionManager because it must know the fileno to unregister a socket
+		#if not self.is_connected():
+		#	raise ConnectionException("Instance not connected to remote server, no fileno available")
 		return self.socket.fileno()
 
+	#TODO: Reconsider this status scheme. Currently CONNECTING is never used.
 	def is_connected(self):
 		return self.status == CONNECTED
 
@@ -125,6 +127,7 @@ class ELConnection(BaseConnection):
 			raise ConnectionException("Already connected")
 		self.__setup_socket()
 		self.con_tries += 1
+		self._inp = "" #Discard old data
 		return self._send_login()
 
 	def reconnect(self):
@@ -136,8 +139,10 @@ class ELConnection(BaseConnection):
 
 	def disconnect(self):
 		"""Closes our socket gracefully"""
-		self.send(ELPacket(ELNetToServer.BYE, None))
-		self.socket.shutdown(socket.SHUT_RDWR)
+		if self.status != DISCONNECTED:
+			self.send(ELPacket(ELNetToServer.BYE, None))
+			self.socket.shutdown(socket.SHUT_RDWR)
+		self.socket.close()
 		self.socket = None
 		self.status = DISCONNECTED
 
@@ -154,7 +159,6 @@ class ELConnection(BaseConnection):
 				self.send(ELPacket(ELNetToServer.LOG_IN, login_str))	
 				self.status = CONNECTED
 				self.socket.setblocking(1)
-				self.__set_last_send(time.time())
 				return True
 			else:
 				log.error("Error %d connecting - %s" % (ret, os.strerror(ret)))
@@ -163,7 +167,6 @@ class ELConnection(BaseConnection):
 				return False
 		except (socket.error, socket.herror, socket.gaierror), why:
 			self.error = "Connection failed: %i - %s" % (why[0], why[1])
-			self.socket = None
 			self.status = DISCONNECTED
 			return False
 
@@ -180,9 +183,8 @@ class ELConnection(BaseConnection):
 				return False
 	
 	def keep_alive(self):
-		"""Calls ping if last_send exceeds MAX_LAST_SEND_SECS"""
-		diff = int(time.time() - self.last_send)
-		if self.is_connected() and diff >= self.MAX_LAST_SEND_SECS:
+		"""Sends a heartbeat to the server so that it knows we're still alive"""
+		if self.is_connected():
 			self.send(ELPacket(ELNetToServer.HEART_BEAT, None))
 	
 	def send(self, packet):
@@ -195,7 +197,14 @@ class ELConnection(BaseConnection):
 		to_send = struct.pack('<BH', packet.type, length)
 		if packet.data is not None:
 			to_send += packet.data
-		self.socket.send(to_send)
+		sent = 0
+		while sent < len(to_send):
+			#TODO: This may block
+			ret = self.socket.send(to_send[sent:])
+			if ret == 0 or ret == -1:
+				self.status = DISCONNECTED
+				raise ConnectionException("Other end disconnected")
+			sent += ret
 		self.__set_last_send(time.time())
 		log.debug("Packet sent")
 	
@@ -204,7 +213,10 @@ class ELConnection(BaseConnection):
 			self.send(packet)
 
 	def recv(self, length=2048):
-		"""Return the contents of the socket. length is optional, defaults to 2048"""
+		"""
+			Return the contents of the socket. length is optional, defaults to 2048
+			Raises ConnectionException on errors
+		"""
 		packets = []
 		def parse_message():
 			"""Return the packet type (see ELConstants) and its data as a tuple"""
@@ -218,7 +230,12 @@ class ELConnection(BaseConnection):
 				else:
 					#We don't have the entire message, abort
 					return
-		self._inp += self.socket.recv(length)
+		ret = self.socket.recv(length)
+		if not ret:
+			self.status = DISCONNECTED
+			#recv failed, connection dead
+			raise ConnectionException("Other end disconnected")
+		self._inp += ret
 		for packet in parse_message():
 			packets.append(packet)
 		return packets
