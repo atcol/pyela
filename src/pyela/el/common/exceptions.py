@@ -16,6 +16,7 @@
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
 """Various exceptions pertaining to...exception circumstances at runtime"""
 
+#TODO: Move to src/pyela/common? This is strictly speaking not EL-specific
 class BaseException(Exception):
 	def __init__(self, val):
 		self.value = val

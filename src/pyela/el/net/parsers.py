@@ -283,3 +283,12 @@ class ELYouDontExistParser(MessageParser):
 		event.data['connection'] = self.connection
 		em.raise_event(event)
 		return[]
+
+class ELLoginOKParser(MessageParser):
+	"""Parse the LOG_IN_OK message"""
+	def parse(self, packet):
+		event = ELEvent(ELEventType(ELNetFromServer.YOU_DONT_EXIST))
+		event.data = {}
+		event.data['connection'] = self.connection
+		self.connection.con_tries = 0
+		return []

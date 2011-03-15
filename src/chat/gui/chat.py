@@ -26,6 +26,7 @@ from pyela.el.net.connections import ELConnection
 from pyela.el.net.elconstants import ELConstants, ELNetFromServer, ELNetToServer
 from pyela.el.net.packets import ELPacket
 from pyela.el.net.packethandlers import ExtendedELPacketHandler
+from pyela.el.common.exceptions import ConnectionException
 from pyela.el.logic.session import ELSession
 from pyela.el.logic.events import ELEventType
 from pyela.el.logic.eventmanagers import ELSimpleEventManager
@@ -231,10 +232,11 @@ class ChatGUI(gtk.Window):
 	def __keep_alive(self):
 		"""keeps self.elc alive by calling its keep_alive function.
 		This is called automatically every 15 seconds by the gobject API"""
-		self.elc.keep_alive()
+		if self.elc.is_connected():
+			self.elc.keep_alive()
 		return True
 	
-	def __elc_error(self):
+	def __elc_error(self, fd, condition):
 		"""Called by gtk when an error with the socket occurs"""
 		self.append_chat(["A networking error occured. Login again."])
 		self.elc.disconnect()
@@ -262,8 +264,12 @@ class ChatGUI(gtk.Window):
 			self.input_hbox.msg_txt.set_text("@@%s " % chan)
 		self.input_hbox.msg_txt.grab_focus()
 
-	def __process_packets(self, widget, data=None):
-		packets = self.elc.recv()
+	def __process_packets(self, fd, condition):
+		try:
+			packets = self.elc.recv()
+		except ConnectionException:
+			self.__elc_error(None, None)
+			return True
 		self.elc.process_packets(packets)
 		return True
 	
