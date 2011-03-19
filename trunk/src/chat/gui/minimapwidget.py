@@ -42,8 +42,8 @@ class MinimapEventHandler(BaseEventHandler):
 			actor.dot.colour = actor.name_colour
 			self.minimap.add_dot(actor.dot)
 		elif event.type.id == ELNetFromServer.REMOVE_ACTOR:
-			actor_id = event.data
-			self.minimap.del_dot(self.minimap.el_session.actors[actor_id].dot)
+			actor = event.data['actor']
+			self.minimap.del_dot(actor.dot)
 		elif event.type.id == ELNetFromServer.KILL_ALL_ACTORS:
 			self.minimap.del_all_dots()
 		elif event.type.id == ELNetFromServer.ADD_ACTOR_COMMAND:
