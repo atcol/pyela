@@ -53,10 +53,10 @@ def main():
 	sys_cfg = ConfigParser.ConfigParser()# system-wide settings
 	sys_cfg.read('system.ini')
 
-	for file in os.listdir('.'):
-		if file.endswith(".ini") and file != "system.ini":
+	for file in os.listdir('./bots'):
+		if file.endswith(".ini"):
 			cfg = ConfigParser.ConfigParser()
-			cfg.read("./%s" % file)
+			cfg.read("./bots/%s" % file)
 			con = get_elconnection_by_config(cfg)
 			con.packet_handler = ExtendedELPacketHandler(con)
 			connections.append(con)

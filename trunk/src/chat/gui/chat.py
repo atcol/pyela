@@ -1,4 +1,4 @@
-# Copyright 2008 Alex Collins
+# Copyright 2008, 2011 Pyela Project
 #
 # This file is part of Pyela.
 # 
@@ -22,66 +22,18 @@ import struct
 from random import random as rand
 import sys
 
+from pyela.el.net.elconstants import ELNetToServer
 from pyela.el.net.connections import ELConnection
-from pyela.el.net.elconstants import ELConstants, ELNetFromServer, ELNetToServer
 from pyela.el.net.packets import ELPacket
 from pyela.el.net.packethandlers import ExtendedELPacketHandler
 from pyela.el.common.exceptions import ConnectionException
 from pyela.el.logic.session import ELSession
-from pyela.el.logic.events import ELEventType
 from pyela.el.logic.eventmanagers import ELSimpleEventManager
-from pyela.logic.eventhandlers import BaseEventHandler
-from pyela.el.util.strings import strip_chars, el_colour_char_table, el_str_to_str, is_colour
-from pyela.el.net.channel import Channel
+from pyela.el.util.strings import el_colour_char_table, el_str_to_str
 from gui.login import LoginGUI
 from gui.minimapwidget import Minimap
 
-class ChatGUIEventHandler(BaseEventHandler):
-	def __init__(self, gui):
-		self.gui = gui
-		self.event_types = [
-				ELEventType(ELNetFromServer.RAW_TEXT),
-				ELEventType(ELNetFromServer.GET_ACTIVE_CHANNELS),
-				ELEventType(ELNetFromServer.BUDDY_EVENT),
-				ELEventType(ELNetFromServer.LOG_IN_NOT_OK),
-				ELEventType(ELNetFromServer.YOU_DONT_EXIST)]
-
-	def notify(self, event):
-		if event.type.id == ELNetFromServer.RAW_TEXT:
-			#TODO: Proper colour handling, see http://python.zirael.org/e-gtk-textview2.html for examples
-			self.gui.append_chat("\n")
-			text = el_str_to_str(event.data['raw'])
-			if is_colour(text[0]):
-				colour_code = ord(text[0])-127
-				tag = self.gui.gtk_el_colour_table[colour_code]
-			else:
-				tag = None
-			#Get rid of colour codes now that the colour information has been extracted
-			text = event.data['text']
-			if event.data['channel'] in (ELConstants.CHAT_CHANNEL1, ELConstants.CHAT_CHANNEL2, ELConstants.CHAT_CHANNEL3):
-				channel = int(event.data['channel'])
-				self.gui.append_chat([text.replace(']', " @ %s]" % self.gui.elc.session.channels[int(channel - ELConstants.CHAT_CHANNEL1)].number)], tag)
-			else:
-				self.gui.append_chat([event.data['text']], tag)
-		elif event.type.id == ELNetFromServer.GET_ACTIVE_CHANNELS:
-			self.gui.tool_vbox.channel_list.clear()
-			for chan in self.gui.elc.session.channels:
-				self.gui.tool_vbox.channel_list.append(["%s" % chan.number])
-		elif event.type.id == ELNetFromServer.BUDDY_EVENT:
-			self.gui.tool_vbox.buddy_list.clear()
-			for buddy in self.gui.elc.session.buddies:
-				self.gui.tool_vbox.buddy_list.append([buddy])
-		elif event.type.id == ELNetFromServer.LOG_IN_NOT_OK:
-			self.gui.append_chat([event.data['text']])
-			self.gui.elc.disconnect()
-			self.gui.do_login()
-		elif event.type.id == ELNetFromServer.YOU_DONT_EXIST:
-			self.gui.append_chat(['Incorrect username.'])
-			self.gui.elc.disconnect()
-			self.gui.do_login()
-
-	def get_event_types(self):
-		return self.event_types
+from logic.eventhandler import ChatGUIEventHandler
 
 class ChatGUI(gtk.Window):
 	def __init__(self):
