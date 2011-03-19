@@ -28,7 +28,7 @@ from pyela.el.net.parsers import ELAddActorMessageParser, \
 	ELGetActiveChannelsMessageParser, \
 	ELBuddyEventMessageParser, ELRemoveAllActorsParser, ELYouAreParser, \
 	ELRawTextMessageParser, ELBuddyEventMessageParser, ELLoginFailedParser, \
-	ELYouDontExistParser, ELLoginOKParser
+	ELYouDontExistParser, ELLoginOKParser, ELPingRequestParser
 
 log = logging.getLogger('pyela.el.net.packethandlers')
 
@@ -74,3 +74,4 @@ class ExtendedELPacketHandler(BaseELPacketHandler):
 		self.CALLBACKS[ELNetFromServer.LOG_IN_NOT_OK] = ELLoginFailedParser(self.connection)
 		self.CALLBACKS[ELNetFromServer.LOG_IN_OK] = ELLoginOKParser(self.connection)
 		self.CALLBACKS[ELNetFromServer.YOU_DONT_EXIST] = ELYouDontExistParser(self.connection)
+		self.CALLBACKS[ELNetFromServer.PING_REQUEST] = ELPingRequestParser(self.connection)

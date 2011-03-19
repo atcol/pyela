@@ -39,12 +39,12 @@ class MessageParser(object):
 	"""A message received from the Eternal Lands server"""
 
 	def __init__(self, connection):
-		"""The session should be an instance of ELSession"""
+		"""The connection should be an instance of ELConnection"""
 		self.connection = connection
 	
 	def parse(self, packet):
-		"""Parse the given packet and return a list of Packet
-		instances (or derivatives) ready for output (if any)
+		"""Parse the given packet and return a list of Event
+		instances (or derivatives) (if any)
 		"""
 		pass
 
@@ -53,12 +53,11 @@ class ELRawTextMessageParser(MessageParser):
 	def parse(self, packet):
 		event = ELEvent(ELEventType(ELNetFromServer.RAW_TEXT))
 		event.data = {}
-		event.data['connection'] = self.connection
-		event.data['channel'] = struct.unpack('<b', packet.data[0])[0]
-		event.data['text'] = strip_chars(packet.data[1:])
-		event.data['raw'] = packet.data[1:]
-		em.raise_event(event)
-		return []
+		event.data['connection'] = self.connection #The connection the message origins from
+		event.data['channel'] = struct.unpack('<b', packet.data[0])[0] # The channel of the message
+		event.data['text'] = strip_chars(packet.data[1:]) # The stripped text of the message, no colour codes, special characters translated to utf8
+		event.data['raw'] = packet.data[1:] # The raw text including colour codes and untranslated special characters
+		return [event]
 
 class ELAddActorMessageParser(MessageParser):
 	def parse(self, packet):
@@ -69,6 +68,7 @@ class ELAddActorMessageParser(MessageParser):
 		actor.z_rot, actor.type, frame, actor.max_health, \
 		actor.cur_health, actor.kind_of_actor \
 		= struct.unpack('<HHHHHBBHHB', packet.data[:17])
+		events = []
 
 		#Remove the buffs from the x/y coordinates
 		actor.x_pos = actor.x_pos & 0x7FF
@@ -148,18 +148,17 @@ class ELAddActorMessageParser(MessageParser):
 		
 		event = ELEvent(ELEventType(ELNetFromServer.ADD_NEW_ACTOR))
 		event.data = actor #TODO: add connection to event data
-		em.raise_event(event)
-		
+		events.append(event)
 		if actor.id == self.connection.session.own_actor_id:
 			self.connection.session.own_actor = actor
 			event = ELEvent(ELEventType(ELNetFromServer.YOU_ARE))
-			event.data = actor
-			em.raise_event(event)
+			event.data = actor #TODO: add connection to event data
+			events.append(event)
 
 		if log.isEnabledFor(logging.DEBUG): log.debug("Actor parsed: %s, %s, %s, %s, %s, %s, %s, %s, %s, %s" % (actor.id, actor.x_pos, actor.y_pos, actor.z_pos, \
 			actor.z_rot, actor.type, actor.max_health, \
 			actor.cur_health, actor.kind_of_actor, actor.name))
-		return []
+		return events
 
 class ELRemoveActorMessageParser(MessageParser):
 	def _get_ids(data):
@@ -175,24 +174,25 @@ class ELRemoveActorMessageParser(MessageParser):
 		if log.isEnabledFor(logging.DEBUG): log.debug("Actors: %s" % self.connection.session.actors)
 		for actor_id in self._get_ids(packet.data):
 			event = ELEvent(ELEventType(ELNetFromServer.REMOVE_ACTOR))
-			event.data = actor_id #TODO: Add connection to event.data
-			em.raise_event(event)
+			event.data = {}
+			event.data['connection'] = self.connection
+			event.data['id'] = actor_id
+			event.data['actor'] = self.connection.session.actors[actor_id]
 			if actor_id in self.connection.session.actors:
 				del self.connection.session.actors[actor_id]
 			if actor_id == self.connection.session.own_actor_id:
 				self.connection.session.own_actor_id = -1
 				self.connection.session.own_actor = None
-		return []
+		return [event]
 
 class ELRemoveAllActorsParser(MessageParser):
 	def parse(self, packet):
 		event = ELEvent(ELEventType(ELNetFromServer.KILL_ALL_ACTORS))
-		event.data = {'connection': self.connection}
-		em.raise_event(event)
+		event.data = {'connection': self.connection} # The full actors list can be added to the event data if it's required
 		
 		self.connection.session.actors = {}
 		if log.isEnabledFor(logging.DEBUG): log.debug("Remove all actors packet")
-		return []
+		return [event]
 
 class ELAddActorCommandParser(MessageParser):
 	def _get_commands(data):
@@ -203,6 +203,7 @@ class ELAddActorCommandParser(MessageParser):
 	_get_commands = staticmethod(_get_commands)
 
 	def parse(self, packet):
+		events = []
 		if log.isEnabledFor(logging.DEBUG): log.debug("Actor command packet: '%s'" % packet.data)
 		for actor_id, command in self._get_commands(packet.data):
 			if actor_id in self.connection.session.actors:
@@ -210,8 +211,8 @@ class ELAddActorCommandParser(MessageParser):
 	
 				event = ELEvent(ELEventType(ELNetFromServer.ADD_ACTOR_COMMAND))
 				event.data = {'actor': self.connection.session.actors[actor_id], 'command': command, 'connection': self.connection}
-				em.raise_event(event)
-		return []
+				events.append(event)
+		return events
 
 class ELYouAreParser(MessageParser):
 	def parse(self, packet):
@@ -223,7 +224,7 @@ class ELYouAreParser(MessageParser):
 			
 			event = ELEvent(ELEventType(ELNetFromServer.YOU_ARE))
 			event.data = self.connection.session.own_actor #TODO: Add connection to event.data
-			em.raise_event(event)
+			return[event]
 		return []
 
 class ELGetActiveChannelsMessageParser(MessageParser):
@@ -241,8 +242,7 @@ class ELGetActiveChannelsMessageParser(MessageParser):
 		#Event to notify about the change in the channel list
 		event = ELEvent(ELEventType(ELNetFromServer.GET_ACTIVE_CHANNELS))
 		event.data = self.connection.session.channels #TODO: add connection to event.data
-		em.raise_event(event)
-		return []
+		return [event]
 
 class ELBuddyEventMessageParser(MessageParser):
 	"""Parse the BUDDY_EVENT message"""
@@ -262,18 +262,17 @@ class ELBuddyEventMessageParser(MessageParser):
 			event.data['event'] = 'offline'
 		event.data['name'] = buddy
 		event.data['connection'] = self.connection
-		em.raise_event(event)
-		return []
+		return [event]
 
 class ELLoginFailedParser(MessageParser):
 	"""Parse the LOG_IN_NOT_OK message"""
 	def parse(self, packet):
 		event = ELEvent(ELEventType(ELNetFromServer.LOG_IN_NOT_OK))
+		event.data = {}
 		event.data['text'] = strip_chars(packet.data)
 		event.data['raw'] = packet.data
 		event.data['connection'] = self.connection
-		em.raise_event(event)
-		return []
+		return [event]
 
 class ELYouDontExistParser(MessageParser):
 	"""Parse the YOU_DONT_EXIST message"""
@@ -281,14 +280,22 @@ class ELYouDontExistParser(MessageParser):
 		event = ELEvent(ELEventType(ELNetFromServer.YOU_DONT_EXIST))
 		event.data = {}
 		event.data['connection'] = self.connection
-		em.raise_event(event)
-		return[]
+		return[event]
 
 class ELLoginOKParser(MessageParser):
 	"""Parse the LOG_IN_OK message"""
 	def parse(self, packet):
-		event = ELEvent(ELEventType(ELNetFromServer.YOU_DONT_EXIST))
+		event = ELEvent(ELEventType(ELNetFromServer.LOG_IN_OK))
 		event.data = {}
 		event.data['connection'] = self.connection
 		self.connection.con_tries = 0
+		return [event]
+
+class ELPingRequestParser(MessageParser):
+	"""Parse the PING_REQUEST message and respond with the appropriate message.
+	Does not raise an event, as this is strictly a protocol feature and not
+	something the application itself should worry about."""
+	def parse(self, packet):
+		# Send the message back as-is.
+		self.connection.send(ELPacket(ELNetToServer.PING_RESPONSE, packet.data))
 		return []

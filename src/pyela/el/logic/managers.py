@@ -135,7 +135,8 @@ class MultiConnectionManager(ConnectionManager):
 						#log.debug("Bytes (%d): %s" % (len(bytes), bytes))
 						if len(packets) != 0:
 							if log.isEnabledFor(logging.DEBUG): log.debug("Received %d packets" % len(packets))
-							con.process_packets(packets)
+							for e in con.process_packets(packets):
+								ELSimpleEventManager().raise_event(e)
 						else:
 							log.error("Empty packets returned. Connection down? Reconnecting... (con=%s)" % con)
 					con.process_queue()

@@ -77,8 +77,8 @@ class ChatGUIEventHandler(BaseEventHandler):
 			self.gui.do_login()
 		elif event.type.id == ELNetFromServer.YOU_DONT_EXIST:
 			self.gui.append_chat(['Incorrect username.'])
-			self.elc.disconnect()
-			self.do_login()
+			self.gui.elc.disconnect()
+			self.gui.do_login()
 
 	def get_event_types(self):
 		return self.event_types
@@ -270,7 +270,9 @@ class ChatGUI(gtk.Window):
 		except ConnectionException:
 			self.__elc_error(None, None)
 			return True
-		self.elc.process_packets(packets)
+		events = self.elc.process_packets(packets)
+		for e in events:
+			ELSimpleEventManager().raise_event(e)
 		return True
 	
 	def find_buddy_row(self, buddy):
