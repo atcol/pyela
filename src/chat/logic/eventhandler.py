@@ -1,0 +1,108 @@
+# Copyright 2011 Pyela Project
+#
+# This file is part of Pyela.
+# 
+# Pyela is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Pyela is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
+
+from pyela.el.net.elconstants import ELConstants, ELNetFromServer
+from pyela.el.logic.events import ELEventType
+from pyela.logic.eventhandlers import BaseEventHandler
+from pyela.el.logic.eventmanagers import ELSimpleEventManager
+from pyela.el.util.strings import el_str_to_str, is_colour
+
+class ChatGUIEventHandler(BaseEventHandler):
+	def __init__(self, gui):
+		self.gui = gui
+		self.event_types = [
+				ELEventType(ELNetFromServer.RAW_TEXT),
+				ELEventType(ELNetFromServer.GET_ACTIVE_CHANNELS),
+				ELEventType(ELNetFromServer.BUDDY_EVENT),
+				ELEventType(ELNetFromServer.LOG_IN_NOT_OK),
+				ELEventType(ELNetFromServer.YOU_DONT_EXIST)]
+
+	def notify(self, event):
+		if event.type.id == ELNetFromServer.RAW_TEXT:
+			#TODO: Proper colour handling, see http://python.zirael.org/e-gtk-textview2.html for examples
+			self.gui.append_chat("\n")
+			text = el_str_to_str(event.data['raw'])
+			if is_colour(text[0]):
+				colour_code = ord(text[0])-127
+				tag = self.gui.gtk_el_colour_table[colour_code]
+			else:
+				tag = None
+			#Get rid of colour codes now that the colour information has been extracted
+			text = event.data['text']
+			if event.data['channel'] in (ELConstants.CHAT_CHANNEL1, ELConstants.CHAT_CHANNEL2, ELConstants.CHAT_CHANNEL3):
+				channel = int(event.data['channel'])
+				self.gui.append_chat([text.replace(']', " @ %s]" % self.gui.elc.session.channels[int(channel - ELConstants.CHAT_CHANNEL1)].number)], tag)
+			else:
+				self.gui.append_chat([event.data['text']], tag)
+		elif event.type.id == ELNetFromServer.GET_ACTIVE_CHANNELS:
+			self.gui.tool_vbox.channel_list.clear()
+			for chan in self.gui.elc.session.channels:
+				self.gui.tool_vbox.channel_list.append(["%s" % chan.number])
+		elif event.type.id == ELNetFromServer.BUDDY_EVENT:
+			self.gui.tool_vbox.buddy_list.clear()
+			for buddy in self.gui.elc.session.buddies:
+				self.gui.tool_vbox.buddy_list.append([buddy])
+		elif event.type.id == ELNetFromServer.LOG_IN_NOT_OK:
+			self.gui.append_chat([event.data['text']])
+			self.gui.elc.disconnect()
+			self.gui.do_login()
+		elif event.type.id == ELNetFromServer.YOU_DONT_EXIST:
+			self.gui.append_chat(['Incorrect username.'])
+			self.gui.elc.disconnect()
+			self.gui.do_login()
+
+	def get_event_types(self):
+		return self.event_types
+
+from gui.minimapdot import MinimapDot
+
+class MinimapEventHandler(BaseEventHandler):
+	"""Event handler for the minimap widget"""
+	def __init__(self, minimap):
+		self.minimap = minimap
+		self.event_types = [ELEventType(ELNetFromServer.ADD_NEW_ACTOR),
+				ELEventType(ELNetFromServer.REMOVE_ACTOR),
+				ELEventType(ELNetFromServer.KILL_ALL_ACTORS),
+				ELEventType(ELNetFromServer.ADD_ACTOR_COMMAND),
+				ELEventType(ELNetFromServer.YOU_ARE)]
+	
+	def notify(self, event):
+		if event.type.id == ELNetFromServer.ADD_NEW_ACTOR:
+			actor = event.data
+			if actor.id == self.minimap.el_session.own_actor_id:
+				self.minimap.set_own_pos(actor.x_pos, actor.y_pos)
+			actor.dot = MinimapDot(actor.x_pos, actor.y_pos)
+			actor.dot.colour = actor.name_colour
+			self.minimap.add_dot(actor.dot)
+		elif event.type.id == ELNetFromServer.REMOVE_ACTOR:
+			actor = event.data['actor']
+			self.minimap.del_dot(actor.dot)
+		elif event.type.id == ELNetFromServer.KILL_ALL_ACTORS:
+			self.minimap.del_all_dots()
+		elif event.type.id == ELNetFromServer.ADD_ACTOR_COMMAND:
+			actor = event.data['actor']
+			actor.dot.x = actor.x_pos
+			actor.dot.y = actor.y_pos
+			if actor.id == self.minimap.el_session.own_actor_id:
+				self.minimap.set_own_pos(actor.x_pos, actor.y_pos)
+			self.minimap.redraw_canvas()
+		elif event.type.id == ELNetFromServer.YOU_ARE:
+			actor = event.data
+			self.minimap.set_own_pos(actor.x_pos, actor.y_pos)
+	
+	def get_event_types(self):
+		return self.event_types
