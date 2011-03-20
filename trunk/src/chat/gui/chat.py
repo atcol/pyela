@@ -41,6 +41,7 @@ class ChatGUI(gtk.Window):
 		self.msgb_idx = 0
 		self.last_key = None # for // name completion
 		self.last_pm_to = ""
+		self.elc = None
 		ELSimpleEventManager().add_handler(ChatGUIEventHandler(self))
 		self.__setup_gui()
 	
@@ -53,29 +54,28 @@ class ChatGUI(gtk.Window):
 		self.set_size_request(645, 510)
 		self.set_border_width(5)
 
-		self.input_hbox = gtk.HBox(False, 0)
-		self.input_hbox.show()
 		self.vbox = gtk.VBox(False, 0)
-		self.vbox.show()
 
 		self.chat_hbox = gtk.HBox(False, 0)
-		self.chat_hbox.show()
 
+		#Add the chat area and put a frame around it
 		self.chat_area = ChatArea()
-		self.chat_hbox.pack_start(self.chat_area, True, True, 0)
+		self.chat_area_frame = gtk.Frame()
+		self.chat_area_frame.add(self.chat_area)
+		self.chat_hbox.pack_start(self.chat_area_frame, True, True, 0)
 
 		# add the chat & tool vbox to the chat hbox o,0
 		self.tool_vbox = ToolVBox()
 		self.tool_vbox.channel_tree.connect('row-activated', self.__chan_list_dclick)
 		self.tool_vbox.buddy_tree.connect('row-activated', self.__buddy_list_dclick)
-		self.vbox.pack_start(self.chat_hbox, False, False, 0)
-		self.chat_hbox.pack_end(self.tool_vbox, False, False, 0)
+		self.vbox.pack_start(self.chat_hbox, True, True, 0)
+		self.chat_hbox.pack_start(self.tool_vbox, False, False, 0)
 
 		# setup the chat input & send button
 		self.input_hbox = ChatInputHBox()
 		self.input_hbox.msg_txt.connect('key_press_event', self.__keypress)
 		self.input_hbox.send_btn.connect('clicked', self.send_msg)
-		self.vbox.pack_end(self.input_hbox, False, False, 0)
+		self.vbox.pack_start(self.input_hbox, False, False, 0)
 		
 		#Create the el->gtk colour map
 		self.__build_colourtable()
@@ -83,14 +83,14 @@ class ChatGUI(gtk.Window):
 		# show the login gui to get the user credentials
 		self.do_login()
 
-		# assign the fd of our elconnection to gtk
-		gobject.io_add_watch(self.elc.fileno(), gobject.IO_IN | gobject.IO_PRI, self.__process_packets)
-		gobject.io_add_watch(self.elc.fileno(), gobject.IO_ERR, self.__elc_error)
+		# Add a timer to send the heart beats to the server
 		gobject.timeout_add(15000, self.__keep_alive)
 
+		self.chat_hbox.show_all()
+		self.vbox.show_all()
 		self.add(self.vbox)
-		self.set_title("%s@%s:%s - Pyela Chat" % (self.elc.session.name, self.elc.host, self.elc.port))
 		self.show_all()
+		self.set_title("%s@%s:%s - Pyela Chat" % (self.elc.session.name, self.elc.host, self.elc.port))
 		self.append_chat(['Welcome to Pyela-Chat, part of the Pyela toolset. Visit pyela.googlecode.com for more information'])
 		self.input_hbox.msg_txt.grab_focus()
 
@@ -112,7 +112,7 @@ class ChatGUI(gtk.Window):
 		l = LoginGUI(title="Login - Pyela Chat")
 		response = l.run()
 
-		if response == 0: #TODO: this 0 should be a constant from gtk
+		if response == 0:
 			# login crendials entered
 			session = ELSession(l.user_txt.get_text(), l.passwd_txt.get_text())
 			self.elc = ELConnection(session, l.host_txt.get_text(), int(l.port_txt.get_text()))
@@ -120,6 +120,9 @@ class ChatGUI(gtk.Window):
 			self.elc.packet_handler = ExtendedELPacketHandler(self.elc)
 			self.elc.connect()
 			l.destroy()
+			# assign the fd of our elconnection to gtk
+			gobject.io_add_watch(self.elc.fileno(), gobject.IO_IN | gobject.IO_PRI, self.__process_packets)
+			gobject.io_add_watch(self.elc.fileno(), gobject.IO_ERR, self.__elc_error)
 		else:
 			# quit
 			sys.exit(0)
@@ -205,6 +208,7 @@ class ChatGUI(gtk.Window):
 		else:
 			self.input_hbox.msg_txt.set_text("%s %s" % (self.input_hbox.msg_txt.get_text(), buddy))
 		self.input_hbox.msg_txt.grab_focus()
+		self.input_hbox.msg_txt.set_position(self.input_hbox.msg_txt.get_text_length())
 
 	def __chan_list_dclick(self, channel_tree, path, col, data=None):
 		"""User double-clicked a row in the buddy list treeview"""
@@ -214,7 +218,8 @@ class ChatGUI(gtk.Window):
 		if self.input_hbox.msg_txt.get_text() == "":
 			# add @@N
 			self.input_hbox.msg_txt.set_text("@@%s " % chan)
-		self.input_hbox.msg_txt.grab_focus()
+			self.input_hbox.msg_txt.grab_focus()
+			self.input_hbox.msg_txt.set_position(self.input_hbox.msg_txt.get_text_length())
 
 	def __process_packets(self, fd, condition):
 		try:
@@ -253,19 +258,15 @@ class ChatArea(gtk.ScrolledWindow):
 	def __init__(self):
 		# set-up the scrollable window
 		super(ChatArea, self).__init__()
-		#self.scrolled_win = gtk.ScrolledWindow()
-		#self.set_size_request(560, 480)
 		self.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
-		self.show()
 
 		# setup the chat text area
 		self.chat_buff = gtk.TextBuffer()
 		self.chat_view = gtk.TextView(self.chat_buff)
-		self.chat_view.set_size_request(640, 480)
 		self.chat_view.set_editable(False)
 		self.chat_view.set_wrap_mode(gtk.WRAP_WORD_CHAR)
-		self.chat_view.show()
 		self.add(self.chat_view)
+		self.show_all()
 
 class ToolVBox(gtk.VBox):
 	"""A vertical gtk.Box that contains the minimap, channel and buddy list widgets"""
@@ -275,21 +276,17 @@ class ToolVBox(gtk.VBox):
 		# set-up the channel & buddy list vbox and the buddy list scroll win
 		self.blist_scrolled_win = gtk.ScrolledWindow()
 		self.blist_scrolled_win.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
-		self.blist_scrolled_win.show()
-		#self.vbox = gtk.VBox(False, 0)
 
 		# set-up the minimap
 		self.minimap = Minimap()
 		self.minimap.set_size_request(200, 200)
-		self.minimap.show()
 		self.pack_start(self.minimap, False, False, 0)
 
 		# set-up the channel list tree view
 		self.channel_list = gtk.ListStore(gobject.TYPE_STRING)
 		self.channel_tree = gtk.TreeView(self.channel_list)
-		self.channel_tree.set_size_request(self.channel_tree.get_size_request()[0], 85)
+		self.channel_tree.set_size_request(self.channel_tree.size_request()[0], 95) #TODO: Calculate the height so that exactly three elements will fit in the list
 		self.channel_tree.set_reorderable(True)
-		self.channel_tree.show()
 		self.cell_ren = gtk.CellRendererText()
 		self.cell_ren.set_property("visible", "TRUE")
 		self.channel_col = gtk.TreeViewColumn("Channels", self.cell_ren, markup=0)
@@ -299,7 +296,6 @@ class ToolVBox(gtk.VBox):
 		# set-up the buddy list tree view
 		self.buddy_list = gtk.ListStore(gobject.TYPE_STRING)
 		self.buddy_tree = gtk.TreeView(self.buddy_list)
-		self.buddy_tree.show()
 		self.buddy_cell_ren = gtk.CellRendererText()
 		self.buddy_cell_ren.set_property("visible", "TRUE")
 		self.buddy_col = gtk.TreeViewColumn("Buddies", self.buddy_cell_ren, markup=0)
@@ -307,16 +303,14 @@ class ToolVBox(gtk.VBox):
 		self.blist_scrolled_win.add(self.buddy_tree)
 		self.pack_start(self.channel_tree, False, False, 0)
 		self.pack_start(self.blist_scrolled_win, True, True, 0)
-		self.show()
+		self.show_all()
 
 class ChatInputHBox(gtk.HBox):
 	"""Extends gtk.HBox to provide an input (gtk.Entry) and send button"""
 	def __init__(self):
 		super(ChatInputHBox, self).__init__()
 		self.msg_txt = gtk.Entry(max=155)
-		self.msg_txt.set_size_request(600, self.msg_txt.get_size_request()[1])
-		self.msg_txt.show()
 		self.send_btn = gtk.Button('Send')
-		self.send_btn.show()
-		self.pack_start(self.msg_txt, True, True, 0)# don't expand, but fill the hbox
-		self.pack_start(self.send_btn, True, True, 0)
+		self.pack_start(self.msg_txt, True, True, 0)
+		self.pack_start(self.send_btn, False, False, 0) #Keep the size of the send button constant, give extra space to the text input field
+		self.show_all()
