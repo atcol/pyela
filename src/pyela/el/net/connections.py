@@ -29,6 +29,8 @@ from pyela.el.net.packets import ELPacket
 from pyela.el.net.packethandlers import BasePacketHandler
 from pyela.el.common.exceptions import ConnectionException
 from pyela.el.logic.session import ELSession, get_elsession_by_config
+from pyela.logic.event import NetEvent, NetEventType, NET_CONNECTED, NET_DISCONNECTED
+from pyela.el.logic.eventmanagers import ELSimpleEventManager
 
 CONNECTED, CONNECTING, DISCONNECTED = range(3)
 
@@ -140,15 +142,19 @@ class ELConnection(BaseConnection):
 	def disconnect(self):
 		"""Closes our socket gracefully"""
 		if self.status != DISCONNECTED:
-			self.send(ELPacket(ELNetToServer.BYE, None))
+			self.send(ELPacket(ELNetToServer.BYE, None)) #This is not really necessary, but d
 			self.socket.shutdown(socket.SHUT_RDWR)
-		self.socket.close()
+		event = NetEvent(NetEventType(NET_DISCONNECTED), self)
+		ELSimpleEventManager().raise_event(event)
+		if self.socket != None:
+			self.socket.close()
 		self.socket = None
 		self.status = DISCONNECTED
 
 	def _send_login(self):
 		if self.socket is None:
-			self.__setup_socket()
+			if not self.__setup_socket():
+				return False
 
 		login_str = '%s %s\0' % (self.session.name, self.session.password)
 		try:
@@ -159,15 +165,19 @@ class ELConnection(BaseConnection):
 				self.send(ELPacket(ELNetToServer.LOG_IN, login_str))	
 				self.status = CONNECTED
 				self.socket.setblocking(1)
+				event = NetEvent(NetEventType(NET_CONNECTED), self)
+				ELSimpleEventManager().raise_event(event)
 				return True
 			else:
 				log.error("Error %d connecting - %s" % (ret, os.strerror(ret)))
 				self.status = DISCONNECTED
+				self.disconnect()
 				self.err = os.strerror(ret)
 				return False
 		except (socket.error, socket.herror, socket.gaierror), why:
 			self.error = "Connection failed: %i - %s" % (why[0], why[1])
 			self.status = DISCONNECTED
+			self.disconnect()
 			return False
 
 
@@ -176,7 +186,6 @@ class ELConnection(BaseConnection):
 			#log.info('Connecting to %s:%s' % (self.host, self.port))
 			try:
 				self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
 			except (socket.error, socket.herror, socket.gaierror), why:
 				log.error('Failed to create socket: %i: %s' % tuple(why))
 				self.socket = None
@@ -203,6 +212,7 @@ class ELConnection(BaseConnection):
 			ret = self.socket.send(to_send[sent:])
 			if ret == 0 or ret == -1:
 				self.status = DISCONNECTED
+				self.disconnect()
 				raise ConnectionException("Other end disconnected")
 			sent += ret
 		self.__set_last_send(time.time())
@@ -232,8 +242,9 @@ class ELConnection(BaseConnection):
 					return
 		ret = self.socket.recv(length)
 		if not ret:
-			self.status = DISCONNECTED
 			#recv failed, connection dead
+			self.status = DISCONNECTED
+			self.disconnect()
 			raise ConnectionException("Other end disconnected")
 		self._inp += ret
 		for packet in parse_message():

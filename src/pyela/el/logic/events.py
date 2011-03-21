@@ -23,7 +23,17 @@ class ELEventType(BaseEventType):
 		self.id = id
 
 	def __str__(self):
-		return repr("ELEventType.id=%s" % self.id)
+		return repr("ELEventType.id=%i" % self.id)
+	
+	def __eq__(self, other):
+		return self.id == other.id
+	
+	def __cmp__(self, other):
+		return self.id - other.id
+	
+	def __hash__(self):
+		s = self.__str__()
+		return hash(s)
 
 class ELEvent(BaseEvent):
 
@@ -36,6 +46,7 @@ class ELEvent(BaseEvent):
 	def __str__(self):
 		return repr("ELEvent.type=%s" % self.type)
 
+#TODO: This class is not used, remove it?
 class ELNetEvent(ELEvent):
 	"""A network related event. The constructor will enforce the given type is 
 	in ELConstants, ELNetFromServer or ELNetToServer
@@ -47,3 +58,6 @@ class ELNetEvent(ELEvent):
 		#		raise EventException("Incorrect type for a network event")
 		#else:
 		self.type = type
+	
+	def __str__(self):
+		return repr("ELNetEvent.type=%s" % self.type)

@@ -24,8 +24,18 @@ class EventException(Exception):
 		return repr(self.val)
 
 class BaseEventType(object):
-	"""A desciriptor for events"""
-	pass
+	"""A descriptor for events"""
+	def __eq__(self, other):
+		"""Must be implemented for all event types"""
+		pass
+	
+	def __cmp__(self, other):
+		"""Must be implemented for all event types"""
+		pass
+	
+	def __hash__(self):
+		"""Must be implemented for all event types"""
+		pass
 
 class BaseEvent(object):
 	"""Represents an action or occurance of actions within the framework.
@@ -40,3 +50,45 @@ class BaseEvent(object):
 	def get_type(self):
 		"""An identifier describing this particular event"""
 		pass
+
+
+(NET_CONNECTED, NET_DISCONNECTED) = map(lambda x: x+1, range(2))
+
+class NetEventType(BaseEventType):
+	def __init__(self, id):
+		if not id in (NET_CONNECTED, NET_DISCONNECTED):
+			raise TypeError("Not a valid net event")
+		self.id = id
+
+	def __str__(self):
+		return repr("NetEventType.id=%s" % self.id)
+	
+	def __eq__(self, other):
+		return self.id == other.id
+	
+	def __cmp__(self, other):
+		return self.id - other.id
+	
+	def __hash__(self):
+		s = self.__str__()
+		return hash(s)
+
+class NetEvent(BaseEvent):
+	"""Network related events, like socket disconnected or connected.
+	The data field contains the Connection object and the fileno of the socket.
+	In the case of disconnection, NO operations should be performed on the socket."""
+	def __init__(self, type, connection = None):
+		if not isinstance(type, NetEventType):
+			raise TypeError()
+		self.type = type
+		self.data = {'connection': connection}
+		if connection.socket != None:
+			self.data['fileno'] = connection.socket.fileno()
+		else:
+			self.data['fileno'] = None
+
+	def get_type(self):
+		return self.type
+
+	def __str__(self):
+		return repr("NetEvent.type=%s" % self.type)

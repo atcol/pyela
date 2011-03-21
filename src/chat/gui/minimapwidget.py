@@ -88,6 +88,7 @@ class Minimap(gtk.DrawingArea):
 			x = center_x+int((dot.x-self.own_x)*map_to_screen_ratio)
 			y = center_y-int((dot.y-self.own_y)*map_to_screen_ratio) #Minus here because EL's y-axis and cairo's y-axis are inverted
 			if math.sqrt((dot.x-self.own_x)*(dot.x-self.own_x)+(dot.y-self.own_y)*(dot.y-self.own_y)) <= self.view_radius:
+				#Blip is within seeable range
 				context.arc(x, y, float(dot.size)/2*map_to_screen_ratio, 0, 2*math.pi)
 				context.set_source_rgb(dot.colour[0], dot.colour[1], dot.colour[2])
 				context.fill()

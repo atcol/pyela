@@ -20,6 +20,7 @@ from pyela.el.logic.events import ELEventType
 from pyela.logic.eventhandlers import BaseEventHandler
 from pyela.el.logic.eventmanagers import ELSimpleEventManager
 from pyela.el.util.strings import el_str_to_str, is_colour
+from pyela.logic.event import NetEventType, NET_CONNECTED
 
 class ChatGUIEventHandler(BaseEventHandler):
 	def __init__(self, gui):
@@ -65,6 +66,7 @@ class ChatGUIEventHandler(BaseEventHandler):
 			self.gui.elc.disconnect()
 			self.gui.do_login()
 
+
 	def get_event_types(self):
 		return self.event_types
 
@@ -78,31 +80,37 @@ class MinimapEventHandler(BaseEventHandler):
 				ELEventType(ELNetFromServer.REMOVE_ACTOR),
 				ELEventType(ELNetFromServer.KILL_ALL_ACTORS),
 				ELEventType(ELNetFromServer.ADD_ACTOR_COMMAND),
-				ELEventType(ELNetFromServer.YOU_ARE)]
+				ELEventType(ELNetFromServer.YOU_ARE),
+				NetEventType(NET_CONNECTED)]
 	
 	def notify(self, event):
-		if event.type.id == ELNetFromServer.ADD_NEW_ACTOR:
-			actor = event.data
-			if actor.id == self.minimap.el_session.own_actor_id:
+		if isinstance(event.type, NetEventType):
+			if event.type.id == NET_CONNECTED:
+				# Reset the minimap when we get a new network connection
+				self.minimap.del_all_dots()
+		elif isinstance(event.type, ELEventType):
+			if event.type.id == ELNetFromServer.ADD_NEW_ACTOR:
+				actor = event.data
+				if actor.id == self.minimap.el_session.own_actor_id:
+					self.minimap.set_own_pos(actor.x_pos, actor.y_pos)
+				actor.dot = MinimapDot(actor.x_pos, actor.y_pos)
+				actor.dot.colour = actor.name_colour
+				self.minimap.add_dot(actor.dot)
+			elif event.type.id == ELNetFromServer.REMOVE_ACTOR:
+				actor = event.data['actor']
+				self.minimap.del_dot(actor.dot)
+			elif event.type.id == ELNetFromServer.KILL_ALL_ACTORS:
+				self.minimap.del_all_dots()
+			elif event.type.id == ELNetFromServer.ADD_ACTOR_COMMAND:
+				actor = event.data['actor']
+				actor.dot.x = actor.x_pos
+				actor.dot.y = actor.y_pos
+				if actor.id == self.minimap.el_session.own_actor_id:
+					self.minimap.set_own_pos(actor.x_pos, actor.y_pos)
+				self.minimap.redraw_canvas()
+			elif event.type.id == ELNetFromServer.YOU_ARE:
+				actor = event.data
 				self.minimap.set_own_pos(actor.x_pos, actor.y_pos)
-			actor.dot = MinimapDot(actor.x_pos, actor.y_pos)
-			actor.dot.colour = actor.name_colour
-			self.minimap.add_dot(actor.dot)
-		elif event.type.id == ELNetFromServer.REMOVE_ACTOR:
-			actor = event.data['actor']
-			self.minimap.del_dot(actor.dot)
-		elif event.type.id == ELNetFromServer.KILL_ALL_ACTORS:
-			self.minimap.del_all_dots()
-		elif event.type.id == ELNetFromServer.ADD_ACTOR_COMMAND:
-			actor = event.data['actor']
-			actor.dot.x = actor.x_pos
-			actor.dot.y = actor.y_pos
-			if actor.id == self.minimap.el_session.own_actor_id:
-				self.minimap.set_own_pos(actor.x_pos, actor.y_pos)
-			self.minimap.redraw_canvas()
-		elif event.type.id == ELNetFromServer.YOU_ARE:
-			actor = event.data
-			self.minimap.set_own_pos(actor.x_pos, actor.y_pos)
 	
 	def get_event_types(self):
 		return self.event_types
