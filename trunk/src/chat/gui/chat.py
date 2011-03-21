@@ -23,7 +23,7 @@ from random import random as rand
 import sys
 
 from pyela.el.net.elconstants import ELNetToServer
-from pyela.el.net.connections import ELConnection
+from pyela.el.net.connections import ELConnection, DISCONNECTED
 from pyela.el.net.packets import ELPacket
 from pyela.el.net.packethandlers import ExtendedELPacketHandler
 from pyela.el.common.exceptions import ConnectionException
@@ -194,7 +194,9 @@ class ChatGUI(gtk.Window):
 	def __elc_error(self, fd, condition):
 		"""Called by gtk when an error with the socket occurs"""
 		self.append_chat(["A networking error occured. Login again."])
-		self.elc.disconnect()
+		if self.elc.status != DISCONNECTED:
+			self.elc.disconnect()
+		#TODO: Display the above message also in a popup dialog with an OK button before launching the login window?
 		self.do_login()
 
 	def __buddy_list_dclick(self, buddy_tree, path, col, data=None):

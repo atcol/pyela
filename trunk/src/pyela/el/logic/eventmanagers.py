@@ -33,8 +33,8 @@ class ELSimpleEventManager(object):
 		def raise_event(self, event):
 			"""Notify all handlers for the given event"""
 			log.debug("Got event: %s" % event)
-			if self._handlers.has_key(event.type.id):
-				for handler in self._handlers[event.type.id]:
+			if self._handlers.has_key(event.type):
+				for handler in self._handlers[event.type]:
 					handler.notify(event)
 			else:
 				log.debug("Event %s not handled, no mapping available" % event)
@@ -47,11 +47,11 @@ class ELSimpleEventManager(object):
 			if log.isEnabledFor(logging.DEBUG): log.debug("received handler: %s"\
 				% event_handler)
 
-			for type in event_handler.get_event_types():
-				if self._handlers.has_key(type.id):
-					self._handlers[type.id].append(event_handler)
+			for t in event_handler.get_event_types():
+				if self._handlers.has_key(t):
+					self._handlers[t].append(event_handler)
 				else: 
-					self._handlers[type.id] = [event_handler]
+					self._handlers[t] = [event_handler]
 
 	def __init__(self):
 		if ELSimpleEventManager.__instance is None:
