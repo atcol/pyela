@@ -82,9 +82,11 @@ class LoginGUI(gtk.Dialog):
 		self.passwd_box.pack_start(self.passwd_txt, False, False, 0)
 		self.host_box.pack_start(self.host_txt, False, False, 0)
 		self.port_box.pack_start(self.port_txt, False, False, 0)
-		#self.passwd_txt.connect('key_press_event', self._keypress)
-		#self.host_txt.connect('key_press_event', self._keypress)
-		#self.port_txt.connect('key_press_event', self._keypress)
+		#Handle enter-key for all input boxes:
+		self.user_txt.connect('key_press_event', self._input_keypress)
+		self.passwd_txt.connect('key_press_event', self._input_keypress)
+		self.host_txt.connect('key_press_event', self._input_keypress)
+		self.port_txt.connect('key_press_event', self._input_keypress)
 
 		# add the hbox instances to the v_box
 		self.vbox.pack_start(self.login_box, False, False, 0)
@@ -100,3 +102,9 @@ class LoginGUI(gtk.Dialog):
 		# add the boxes to the window
 		self.show_all()
 		self.user_txt.grab_focus()
+	
+	def _input_keypress(self, widget, event):
+		if event.keyval == gtk.keysyms.Return:
+			self.response(0) #Login
+			return True
+		return False
