@@ -243,9 +243,10 @@ class ELConnection(BaseConnection):
 		ret = self.socket.recv(length)
 		if not ret:
 			#recv failed, connection dead
+			#TODO: Store the error somewhere?
 			self.status = DISCONNECTED
 			self.disconnect()
-			raise ConnectionException("Other end disconnected")
+			raise ConnectionException("Other end terminated the connection")
 		self._inp += ret
 		for packet in parse_message():
 			packets.append(packet)

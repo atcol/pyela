@@ -32,6 +32,7 @@ from pyela.el.logic.eventmanagers import ELSimpleEventManager
 from pyela.el.util.strings import el_colour_char_table, el_str_to_str
 from gui.login import LoginGUI
 from gui.minimapwidget import Minimap
+from gui.networking_error import NetworkingErrorAlert
 
 from logic.eventhandler import ChatGUIEventHandler
 
@@ -109,20 +110,29 @@ class ChatGUI(gtk.Window):
 			self.gtk_el_colour_table[code] = self.chat_area.chat_buff.create_tag("el_colour_%i"%code, foreground=hexcode)
 
 	def do_login(self):
-		l = LoginGUI(title="Login - Pyela Chat")
+		#Pass current values to the new login dialog, if there are any
+		defaults = {}
+		if self.elc != None:
+			if self.elc.session != None and self.elc.session.name != None:
+				defaults['user'] = self.elc.session.name
+			defaults['port'] = self.elc.port
+			defaults['address'] = self.elc.host
+			
+		l = LoginGUI(title="Login - Pyela Chat", parent=self, defaults=defaults)
 		response = l.run()
 
-		if response == 0:
+		if response == gtk.RESPONSE_OK:
 			# login crendials entered
 			session = ELSession(l.user_txt.get_text(), l.passwd_txt.get_text())
-			self.elc = ELConnection(session, l.host_txt.get_text(), int(l.port_txt.get_text()))
+			self.elc = ELConnection(session, l.host_txt.get_text(), l.port_spin.get_value_as_int())
 			self.tool_vbox.minimap.el_session = self.elc.session
 			self.elc.packet_handler = ExtendedELPacketHandler(self.elc)
 			self.elc.connect()
+			self.elc.socket.settimeout(15)
 			l.destroy()
 			# assign the fd of our elconnection to gtk
 			gobject.io_add_watch(self.elc.fileno(), gobject.IO_IN | gobject.IO_PRI, self.__process_packets)
-			gobject.io_add_watch(self.elc.fileno(), gobject.IO_ERR, self.__elc_error)
+			gobject.io_add_watch(self.elc.fileno(), gobject.IO_ERR | gobject.IO_HUP, self.__elc_error)
 		else:
 			# quit
 			sys.exit(0)
@@ -191,13 +201,29 @@ class ChatGUI(gtk.Window):
 			self.elc.keep_alive()
 		return True
 	
-	def __elc_error(self, fd, condition):
-		"""Called by gtk when an error with the socket occurs"""
-		self.append_chat(["A networking error occured. Login again."])
+	def __elc_error(self, fd, condition, msg = None):
+		"""Called by gtk when an error with the socket occurs.
+		May also be called by self.__process_packets, in which case msg is set"""
+		err_str = "A networking error occured, please log in again"
+		if msg != None:
+			desc_str = msg
+		else:
+			desc_str = None
+		self.append_chat([err_str])
 		if self.elc.status != DISCONNECTED:
+			# If .status is not DISCONNECTED, GTK has detected an error.
+			# (We set .status to DISCONNECTED when it's detected by us)
 			self.elc.disconnect()
-		#TODO: Display the above message also in a popup dialog with an OK button before launching the login window?
-		self.do_login()
+		# Display the error message in a popup dialog, asking the user what to do
+		alert = NetworkingErrorAlert(self, err_str, desc_str)
+		response = alert.run()
+		alert.destroy()
+		if response == gtk.RESPONSE_REJECT:
+			self.do_login()
+		elif response == gtk.RESPONSE_ACCEPT:
+			self.elc.reconnect()
+		else:
+			sys.exit(0)
 
 	def __buddy_list_dclick(self, buddy_tree, path, col, data=None):
 		"""User double-clicked a row in the buddy list treeview"""
@@ -226,8 +252,8 @@ class ChatGUI(gtk.Window):
 	def __process_packets(self, fd, condition):
 		try:
 			packets = self.elc.recv()
-		except ConnectionException:
-			self.__elc_error(None, None)
+		except ConnectionException as e:
+			self.__elc_error(None, None, e.value)
 			return True
 		events = self.elc.process_packets(packets)
 		for e in events:
