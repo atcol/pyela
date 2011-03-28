@@ -19,7 +19,6 @@ pygtk.require('2.0')
 import gtk
 import gobject
 import struct
-from random import random as rand
 import sys
 
 from pyela.el.net.elconstants import ELNetToServer
@@ -43,6 +42,7 @@ class ChatGUI(gtk.Window):
 		self.last_key = None # for // name completion
 		self.last_pm_to = ""
 		self.elc = None
+		self.g_watch_sources = []
 		ELSimpleEventManager().add_handler(ChatGUIEventHandler(self))
 		self.__setup_gui()
 	
@@ -110,32 +110,61 @@ class ChatGUI(gtk.Window):
 			self.gtk_el_colour_table[code] = self.chat_area.chat_buff.create_tag("el_colour_%i"%code, foreground=hexcode)
 
 	def do_login(self):
-		#Pass current values to the new login dialog, if there are any
+		# Pass current values to the new login dialog, if there are any
 		defaults = {}
 		if self.elc != None:
 			if self.elc.session != None and self.elc.session.name != None:
 				defaults['user'] = self.elc.session.name
 			defaults['port'] = self.elc.port
-			defaults['address'] = self.elc.host
+			defaults['host'] = self.elc.host
 			
 		l = LoginGUI(title="Login - Pyela Chat", parent=self, defaults=defaults)
-		response = l.run()
+		done = False
 
-		if response == gtk.RESPONSE_OK:
-			# login crendials entered
-			session = ELSession(l.user_txt.get_text(), l.passwd_txt.get_text())
-			self.elc = ELConnection(session, l.host_txt.get_text(), l.port_spin.get_value_as_int())
-			self.tool_vbox.minimap.el_session = self.elc.session
-			self.elc.packet_handler = ExtendedELPacketHandler(self.elc)
-			self.elc.connect()
-			self.elc.socket.settimeout(15)
-			l.destroy()
-			# assign the fd of our elconnection to gtk
-			gobject.io_add_watch(self.elc.fileno(), gobject.IO_IN | gobject.IO_PRI, self.__process_packets)
-			gobject.io_add_watch(self.elc.fileno(), gobject.IO_ERR | gobject.IO_HUP, self.__elc_error)
-		else:
-			# quit
-			sys.exit(0)
+		# Loop while trying to connect so that we can display error messages
+		while not done:
+			response = l.run()
+			if response == gtk.RESPONSE_OK:
+				# login credentials entered
+				if self.elc == None:
+					# Initial login, setup the ELConnection
+					session = ELSession(l.user_txt.get_text(), l.passwd_txt.get_text())
+					self.elc = ELConnection(session, l.host_txt.get_text(), l.port_spin.get_value_as_int())
+					self.elc.packet_handler = ExtendedELPacketHandler(self.elc)
+				else:
+					self.elc.session = ELSession(l.user_txt.get_text(), l.passwd_txt.get_text())
+					self.elc.host = l.host_txt.get_text()
+					self.elc.port = l.port_spin.get_value_as_int()
+					self.elc.con_tries = 0
+				self.tool_vbox.minimap.el_session = self.elc.session
+				if not self.elc.connect():
+					# Connection failed!
+					alert = gtk.MessageDialog(l, 
+								gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, 
+								gtk.BUTTONS_CLOSE, "Connection failed")
+					alert.format_secondary_text(self.elc.error)
+					alert.run()
+					alert.destroy()
+					# Re-run the login dialog
+				else:
+					done = True
+			else:
+				# quit
+				sys.exit(0)
+		self.elc.socket.settimeout(15)
+		l.destroy()
+	
+	def _register_socket_io_watch(self):
+		# assign the fd of our elconnection to gtk
+		source = gobject.io_add_watch(self.elc.fileno(), gobject.IO_IN | gobject.IO_PRI, self.__process_packets)
+		self.g_watch_sources.append(source)
+		source = gobject.io_add_watch(self.elc.fileno(), gobject.IO_ERR | gobject.IO_HUP, self.__elc_error)
+		self.g_watch_sources.append(source)
+	
+	def _unregister_socket_io_watch(self):
+		for s in self.gui.g_watch_sources:
+			gobject.source_remove(s)
+		self.gui.gobject_watch_sources = []
 
 	def append_chat(self, msgs, tag = None):
 		for msg in msgs:
@@ -209,7 +238,7 @@ class ChatGUI(gtk.Window):
 			desc_str = msg
 		else:
 			desc_str = None
-		self.append_chat([err_str])
+		self.append_chat(["\n", err_str])
 		if self.elc.status != DISCONNECTED:
 			# If .status is not DISCONNECTED, GTK has detected an error.
 			# (We set .status to DISCONNECTED when it's detected by us)
@@ -219,10 +248,13 @@ class ChatGUI(gtk.Window):
 		response = alert.run()
 		alert.destroy()
 		if response == gtk.RESPONSE_REJECT:
+			# Log in as other user
 			self.do_login()
 		elif response == gtk.RESPONSE_ACCEPT:
+			# Reconnect
 			self.elc.reconnect()
 		else:
+			# Cancel
 			sys.exit(0)
 
 	def __buddy_list_dclick(self, buddy_tree, path, col, data=None):
