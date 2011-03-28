@@ -33,9 +33,9 @@ class NetworkingErrorAlert(gtk.Dialog):
 		super(NetworkingErrorAlert, self).__init__("Networking error",
 				parent,
 				gtk.DIALOG_MODAL|gtk.DIALOG_DESTROY_WITH_PARENT,
-				("Login as other user", gtk.RESPONSE_REJECT,
+				("_Login as other user", gtk.RESPONSE_REJECT,
 				gtk.STOCK_QUIT, gtk.RESPONSE_CANCEL,
-				"Reconnect", gtk.RESPONSE_ACCEPT)
+				"_Reconnect", gtk.RESPONSE_ACCEPT)
 			)
 		self.set_default_response(gtk.RESPONSE_ACCEPT)
 		self.set_position(gtk.WIN_POS_CENTER_ON_PARENT)
