@@ -162,9 +162,9 @@ class ChatGUI(gtk.Window):
 		self.g_watch_sources.append(source)
 	
 	def _unregister_socket_io_watch(self):
-		for s in self.gui.g_watch_sources:
+		for s in self.g_watch_sources:
 			gobject.source_remove(s)
-		self.gui.gobject_watch_sources = []
+		self.gobject_watch_sources = []
 
 	def append_chat(self, msgs, tag = None):
 		for msg in msgs:
