@@ -83,6 +83,7 @@ class ELConnection(BaseConnection):
 			MAX_LAST_SEND_SECS - the maximum amount of seconds allowed between 
 								 messages to the server, default 18
 			incomplete_msgs - list of ELPacket instances who are incomplete
+			error	 - String containing an error message for the last error that was encountered
 		"""
 		self.host = host
 		self.port = port
@@ -98,6 +99,7 @@ class ELConnection(BaseConnection):
 		else:
 			self.packet_handler = packet_handler
 		self._inp = ""# this is temporary
+		self.error = ""
 
 	def set_properties(self, config):
 		"""Load the configuration parameters from config.
@@ -127,8 +129,9 @@ class ELConnection(BaseConnection):
 		"""Connects to the EL server specified at construction"""
 		if self.is_connected():
 			raise ConnectionException("Already connected")
-		self.__setup_socket()
 		self.con_tries += 1
+		if not self.__setup_socket():
+			return False
 		self._inp = "" #Discard old data
 		return self._send_login()
 
@@ -152,13 +155,12 @@ class ELConnection(BaseConnection):
 		self.status = DISCONNECTED
 
 	def _send_login(self):
-		if self.socket is None:
-			if not self.__setup_socket():
-				return False
-
+		if self.session == None or self.session.name == None or self.session.password == None or \
+			self.session.name == "" or self.session.password == "":
+			self.error = "Username or password not set"
+			return False
 		login_str = '%s %s\0' % (self.session.name, self.session.password)
 		try:
-			log.debug("port: %s" % type(self.port))
 			log.info('Connecting to %s:%d' % (self.host, self.port))
 			ret = self.socket.connect_ex((self.host, self.port))
 			if ret == 0:
@@ -172,10 +174,10 @@ class ELConnection(BaseConnection):
 				log.error("Error %d connecting - %s" % (ret, os.strerror(ret)))
 				self.status = DISCONNECTED
 				self.disconnect()
-				self.err = os.strerror(ret)
+				self.error = os.strerror(ret)
 				return False
 		except (socket.error, socket.herror, socket.gaierror), why:
-			self.error = "Connection failed: %i - %s" % (why[0], why[1])
+			self.error = "%s (%i)" % (why[1], why[0])
 			self.status = DISCONNECTED
 			self.disconnect()
 			return False
@@ -187,9 +189,11 @@ class ELConnection(BaseConnection):
 			try:
 				self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			except (socket.error, socket.herror, socket.gaierror), why:
+				self.error = 'Failed to create socket: %i: %s' % tuple(why)
 				log.error('Failed to create socket: %i: %s' % tuple(why))
 				self.socket = None
 				return False
+		return True
 	
 	def keep_alive(self):
 		"""Sends a heartbeat to the server so that it knows we're still alive"""
