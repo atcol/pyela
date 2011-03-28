@@ -133,7 +133,7 @@ class LoginGUI(gtk.Dialog):
 		self.do_move_focus(self, gtk.DIR_TAB_FORWARD)
 	
 	def _check_entries_ok(self, widget=None, a=None, b=None):
-		"""Signal handler that validates the entry inputs, changing the
+		"""Signal handler for the 'changed' signal that validates the entry inputs, changing the
 		login button's sensitivity as required"""
 		if len(self.user_txt.get_text()) > 0 and len(self.passwd_txt.get_text()) > 0 \
 			and len(self.host_txt.get_text()) > 0:
