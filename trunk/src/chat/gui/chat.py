@@ -74,7 +74,7 @@ class ChatGUI(gtk.Window):
 
 		# setup the chat input & send button
 		self.input_hbox = ChatInputHBox()
-		self.input_hbox.msg_txt.connect('key_press_event', self.__keypress)
+		self.input_hbox.msg_txt.connect('key_press_event', self.__input_keypress)
 		self.input_hbox.send_btn.connect('clicked', self.send_msg)
 		self.vbox.pack_start(self.input_hbox, False, False, 0)
 		
@@ -94,6 +94,8 @@ class ChatGUI(gtk.Window):
 		self.set_title("%s@%s:%s - Pyela Chat" % (self.elc.session.name, self.elc.host, self.elc.port))
 		self.append_chat(['Welcome to Pyela-Chat, part of the Pyela toolset. Visit pyela.googlecode.com for more information'])
 		self.input_hbox.msg_txt.grab_focus()
+		
+		self.connect('key_press_event', self.__main_keypress)
 
 		# setup the channel list
 		self.channels = []
@@ -175,7 +177,7 @@ class ChatGUI(gtk.Window):
 				self.chat_area.chat_buff.insert(end, msg)
 		self.chat_area.chat_view.scroll_to_mark(self.chat_area.chat_buff.get_insert(), 0)
 
-	def __keypress(self, widget, event=None):
+	def __input_keypress(self, widget, event=None):
 		if event.keyval == gtk.keysyms.Return:
 			self.send_msg(None, None)
 			return True
@@ -204,6 +206,10 @@ class ChatGUI(gtk.Window):
 			self.input_hbox.msg_txt.set_position(self.input_hbox.msg_txt.get_text_length())
 			return True
 		return False
+	
+	def __main_keypress(self, widget, event=None):
+		if event.state == gtk.gdk.CONTROL_MASK and event.keyval == gtk.keysyms.q:
+			sys.exit(0)
 	
 	def send_msg(self, widget, data=None):
 		msg = self.input_hbox.msg_txt.get_text()
