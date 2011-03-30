@@ -237,11 +237,11 @@ class ELGetActiveChannelsMessageParser(MessageParser):
 		active = chans[0]
 		for c in chans[1:]:
 			if c != 0:
-				self.connection.session.channels.append(Channel(c, i == active))
+				self.connection.session.channels.append(Channel(self.connection, c, i == active))
 			i += 1
 		#Event to notify about the change in the channel list
 		event = ELEvent(ELEventType(ELNetFromServer.GET_ACTIVE_CHANNELS))
-		event.data = self.connection.session.channels #TODO: add connection to event.data
+		event.data = {'connection': self.connection, 'channels': self.connection.session.channels}
 		return [event]
 
 class ELBuddyEventMessageParser(MessageParser):

@@ -18,6 +18,9 @@
 """
 
 import ConfigParser
+from pyela.el.net.elconstants import ELNetToServer, ELConstants
+from pyela.el.net.packets import ELPacket
+import struct
 
 def get_elsession_by_config(config):
 	"""Load all relevant configuration and message values from the given
@@ -64,6 +67,27 @@ class ELSession(Session):
 	def add_actor(self, actor):
 		self.actors.append(actor)
 	
+	#TODO: Consider adding a channel manager class for all the below methods:
+	def add_channel(self, channel):
+		self.channels.append(channel)
+	
+	def get_channel_pos(self, channel):
+		"""Return the channel's position in the channel list (1, 2 or 3).
+		Returns -1 if the channel is not found."""
+		i = 1
+		for ch in self.channels:
+			if ch.number == int(channel):
+				return i
+			i += 1
+		return -1
+	
+	def get_channel_by_num(self, num):
+		"""Look up channel by its number, returns None if not found"""
+		for ch in self.channels:
+			if ch.number == num:
+				return ch
+		return None
+	
 	def get_active_channel(self):
 		"""return the active channel from self.channels"""
 		for ch in self.channels:
@@ -71,5 +95,20 @@ class ELSession(Session):
 				return ch
 		return None
 	
-	def add_channel(self, channel):
-		self.channels.append(channel)
+	def set_active_channel(self, channel):
+		"""Changes the .active properties for the channels in the channel list and
+		   sends the new info to the server.
+		   
+		   Arguments: channel: The channel to become active (type Channel)"""
+		if channel.is_active:
+			return
+		pos = self.get_channel_pos(channel.number)
+		#Calculate the channel ID from the position in the list and notify the server of the change
+		data = struct.pack('B', pos-1+ELConstants.CHAT_CHANNEL1)
+		channel.connection.send(ELPacket(ELNetToServer.SET_ACTIVE_CHANNEL, data))
+		#Update the local list
+		for c in self.channels:
+			if c.number == channel.number:
+				c.is_active = True
+			else:
+				c.is_active = False

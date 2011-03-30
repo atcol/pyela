@@ -17,6 +17,11 @@
 """Represents an in-game channel"""
 
 class Channel(object):
-	def __init__(self, number, is_active):
+	def __init__(self, connection, number, is_active):
+		"""Parameters:
+		connection: the connection that the channel belongs to
+		number: the channel's number
+		is_active: boolean indicating whether the channel is the active channel"""
 		self.number = number
 		self.is_active = is_active
+		self.connection = connection
