@@ -64,9 +64,8 @@ class ChatGUIEventHandler(BaseEventHandler):
 				else:
 					self.gui.append_chat([event.data['text']], tag)
 			elif event.type.id == ELNetFromServer.GET_ACTIVE_CHANNELS:
-				self.gui.tool_vbox.channel_list.clear()
-				for chan in self.gui.elc.session.channels:
-					self.gui.tool_vbox.channel_list.append(["%s" % chan.number])
+				#Just rebuild the GUI channel list
+				self.gui.tool_vbox.rebuild_channel_list(event.data['channels'])
 			elif event.type.id == ELNetFromServer.BUDDY_EVENT:
 				self.gui.tool_vbox.buddy_list.clear()
 				for buddy in self.gui.elc.session.buddies:

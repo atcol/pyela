@@ -21,7 +21,7 @@ import gobject
 import struct
 import sys
 
-from pyela.el.net.elconstants import ELNetToServer
+from pyela.el.net.elconstants import ELNetToServer, ELConstants
 from pyela.el.net.connections import ELConnection, DISCONNECTED
 from pyela.el.net.packets import ELPacket
 from pyela.el.net.packethandlers import ExtendedELPacketHandler
@@ -67,6 +67,7 @@ class ChatGUI(gtk.Window):
 
 		# add the chat & tool vbox to the chat hbox o,0
 		self.tool_vbox = ToolVBox()
+		self.tool_vbox.ch_toggle_ren.connect("toggled", self.__set_active_channel)
 		self.tool_vbox.channel_tree.connect('row-activated', self.__chan_list_dclick)
 		self.tool_vbox.buddy_tree.connect('row-activated', self.__buddy_list_dclick)
 		self.vbox.pack_start(self.chat_hbox, True, True, 0)
@@ -262,6 +263,18 @@ class ChatGUI(gtk.Window):
 		else:
 			# Cancel
 			sys.exit(0)
+	
+	def __set_active_channel(self, renderer, path):
+		"""User clicked an 'active' radio button in the channel list treeview.
+		This is a signal handler for the 'toggled' signal."""
+		#Update the session's list and the server
+		ch = self.elc.session.get_channel_by_num(self.tool_vbox.channel_list[path][2])
+		if ch == None:
+			#TODO: This shouldn't happen, find a proper action
+			return
+		self.elc.session.set_active_channel(ch)
+		#Update the GUI list
+		self.tool_vbox.rebuild_channel_list(self.elc.session.channels)
 
 	def __buddy_list_dclick(self, buddy_tree, path, col, data=None):
 		"""User double-clicked a row in the buddy list treeview"""
@@ -277,7 +290,7 @@ class ChatGUI(gtk.Window):
 		self.input_hbox.msg_txt.set_position(self.input_hbox.msg_txt.get_text_length())
 
 	def __chan_list_dclick(self, channel_tree, path, col, data=None):
-		"""User double-clicked a row in the buddy list treeview"""
+		"""User double-clicked a row in the channel list treeview"""
 		# add @@N if input_hbox.msg_txt is empty
 		iter = self.tool_vbox.channel_list.get_iter(path)
 		chan = self.tool_vbox.channel_list.get_value(iter, 0)
@@ -349,15 +362,34 @@ class ToolVBox(gtk.VBox):
 		self.pack_start(self.minimap, False, False, 0)
 
 		# set-up the channel list tree view
-		self.channel_list = gtk.ListStore(gobject.TYPE_STRING)
+		#  List storage
+		self.channel_list = gtk.ListStore(str, bool, int)
+		#  Renderers
+		#   Text renderer
+		self.ch_text_ren = gtk.CellRendererText()
+		self.ch_text_ren.set_property("visible", True)
+		#   Active channel radio renderer
+		self.ch_toggle_ren = gtk.CellRendererToggle()
+		self.ch_toggle_ren.set_property("visible", True)
+		self.ch_toggle_ren.set_property("activatable", True)
+		self.ch_toggle_ren.set_property("radio", True)
+		#  Columns containing the renderers
+		#   Channel column
+		self.channel_col = gtk.TreeViewColumn("Channels")
+		self.channel_col.pack_start(self.ch_text_ren, True)
+		self.channel_col.add_attribute(self.ch_text_ren, 'text', 0)
+		self.channel_col.set_expand(True)
+		#   Active channel column
+		self.active_ch_col = gtk.TreeViewColumn("Active")
+		self.active_ch_col.pack_start(self.ch_toggle_ren, False)
+		self.active_ch_col.add_attribute(self.ch_toggle_ren, 'active', 1)
+		self.active_ch_col.set_expand(False)
+		#  Tree view containing the columns
 		self.channel_tree = gtk.TreeView(self.channel_list)
 		self.channel_tree.set_size_request(self.channel_tree.size_request()[0], 95) #TODO: Calculate the height so that exactly three elements will fit in the list
 		self.channel_tree.set_reorderable(True)
-		self.cell_ren = gtk.CellRendererText()
-		self.cell_ren.set_property("visible", "TRUE")
-		self.channel_col = gtk.TreeViewColumn("Channels", self.cell_ren, markup=0)
-		self.channel_col.set_attributes(self.cell_ren, text=0)
 		self.channel_tree.append_column(self.channel_col)
+		self.channel_tree.append_column(self.active_ch_col)
 
 		# set-up the buddy list tree view
 		self.buddy_list = gtk.ListStore(gobject.TYPE_STRING)
@@ -367,9 +399,17 @@ class ToolVBox(gtk.VBox):
 		self.buddy_col = gtk.TreeViewColumn("Buddies", self.buddy_cell_ren, markup=0)
 		self.buddy_tree.append_column(self.buddy_col)
 		self.blist_scrolled_win.add(self.buddy_tree)
+
 		self.pack_start(self.channel_tree, False, False, 0)
 		self.pack_start(self.blist_scrolled_win, True, True, 0)
 		self.show_all()
+	
+	def rebuild_channel_list(self, channels):
+		"""Rebuild the channel list to correspond with the list passed as the 'channels' parameter"""
+		self.channel_list.clear()
+		for chan in channels:
+			#TODO: #14: Replace element 0 in the below tuple with the channel's text name (if any)
+			self.channel_list.append(("%s" % chan.number, chan.is_active, chan.number))
 
 class ChatInputHBox(gtk.HBox):
 	"""Extends gtk.HBox to provide an input (gtk.Entry) and send button"""
