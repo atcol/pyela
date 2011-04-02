@@ -158,10 +158,12 @@ class ChatGUI(gtk.Window):
 		l.destroy()
 	
 	def _register_socket_io_watch(self):
-		# assign the fd of our elconnection to gtk
-		source = gobject.io_add_watch(self.elc.fileno(), gobject.IO_IN | gobject.IO_PRI, self.__process_packets)
-		self.g_watch_sources.append(source)
-		source = gobject.io_add_watch(self.elc.fileno(), gobject.IO_ERR | gobject.IO_HUP, self.__elc_error)
+		# Assign the fd of our elconnection to gtk
+		# 
+		# The Windows implementation can only handle one IO watch per socket.
+		# See the PyGTK FAQ entry "gobject.io_add_watch doesn't work with non-blocking sockets on win32!":
+		# http://faq.pygtk.org/index.py?file=faq20.020.htp&req=show
+		source = gobject.io_add_watch(self.elc.fileno(), gobject.IO_IN | gobject.IO_PRI | gobject.IO_ERR | gobject.IO_HUP, self.__socket_event)
 		self.g_watch_sources.append(source)
 	
 	def _unregister_socket_io_watch(self):
@@ -236,7 +238,13 @@ class ChatGUI(gtk.Window):
 		if self.elc.is_connected():
 			self.elc.keep_alive()
 		return True
-	
+
+	def __socket_event(self, fd, condition):
+		if condition&(gobject.IO_ERR | gobject.IO_HUP):
+			return self.__elc_error(fd, condition)
+		elif condition&(gobject.IO_IN | gobject.IO_PRI):
+			return self.__handle_socket_data(fd, condition)
+
 	def __elc_error(self, fd, condition, msg = None):
 		"""Called by gtk when an error with the socket occurs.
 		May also be called by self.__process_packets, in which case msg is set"""
@@ -263,6 +271,17 @@ class ChatGUI(gtk.Window):
 		else:
 			# Cancel
 			sys.exit(0)
+
+	def __handle_socket_data(self, fd, condition):
+		try:
+			packets = self.elc.recv()
+		except ConnectionException as e:
+			self.__elc_error(None, None, e.value)
+			return True
+		events = self.elc.process_packets(packets)
+		for e in events:
+			ELSimpleEventManager().raise_event(e)
+		return True
 	
 	def __set_active_channel(self, renderer, path):
 		"""User clicked an 'active' radio button in the channel list treeview.
@@ -299,17 +318,6 @@ class ChatGUI(gtk.Window):
 			self.input_hbox.msg_txt.set_text("@@%s " % chan)
 			self.input_hbox.msg_txt.grab_focus()
 			self.input_hbox.msg_txt.set_position(self.input_hbox.msg_txt.get_text_length())
-
-	def __process_packets(self, fd, condition):
-		try:
-			packets = self.elc.recv()
-		except ConnectionException as e:
-			self.__elc_error(None, None, e.value)
-			return True
-		events = self.elc.process_packets(packets)
-		for e in events:
-			ELSimpleEventManager().raise_event(e)
-		return True
 	
 	def find_buddy_row(self, buddy):
 		"""Get the gtk.Row where buddy is"""
