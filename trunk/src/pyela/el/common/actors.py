@@ -47,31 +47,31 @@ class ELActor(object):
 	def handle_command(self, cmd):
 		"""Applies the actor command cmd to the actor"""
 		#Movement tracking:
-		if cmd == ELConstants.MOVE_N:
+		if cmd == ELConstants.MOVE_N or cmd == ELConstants.RUN_N:
 			self.y_pos += 1
 			self.z_rot = 0
-		elif cmd == ELConstants.MOVE_NE:
+		elif cmd == ELConstants.MOVE_NE or cmd == ELConstants.RUN_NE:
 			self.x_pos += 1
 			self.y_pos += 1
 			self.z_rot = 45
-		elif cmd == ELConstants.MOVE_E:
+		elif cmd == ELConstants.MOVE_E or cmd == ELConstants.RUN_E:
 			self.x_pos += 1
 			self.z_rot = 90
-		elif cmd == ELConstants.MOVE_SE:
+		elif cmd == ELConstants.MOVE_SE or cmd == ELConstants.RUN_SE:
 			self.x_pos += 1
 			self.y_pos -= 1
 			self.z_rot = 135
-		elif cmd == ELConstants.MOVE_S:
+		elif cmd == ELConstants.MOVE_S or cmd == ELConstants.RUN_S:
 			self.y_pos -= 1
 			self.z_rot = 180
-		elif cmd == ELConstants.MOVE_SW:
+		elif cmd == ELConstants.MOVE_SW or cmd == ELConstants.RUN_SW:
 			self.x_pos -= 1
 			self.y_pos -= 1
 			self.z_rot = 225
-		elif cmd == ELConstants.MOVE_W:
+		elif cmd == ELConstants.MOVE_W or cmd == ELConstants.RUN_W:
 			self.x_pos -= 1
 			self.z_rot = 270
-		elif cmd == ELConstants.MOVE_NW:
+		elif cmd == ELConstants.MOVE_NW or cmd == ELConstants.RUN_NW:
 			self.x_pos -= 1
 			self.y_pos += 1
 			self.z_rot = 315
