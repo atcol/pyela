@@ -212,6 +212,11 @@ class ELAddActorCommandParser(MessageParser):
 				event = ELEvent(ELEventType(ELNetFromServer.ADD_ACTOR_COMMAND))
 				event.data = {'actor': self.connection.session.actors[actor_id], 'command': command, 'connection': self.connection}
 				events.append(event)
+			else:
+				#The actor could not be found. Something strange has happened.
+				#Request a new list of nearby actors from the server (resync).
+				#TODO: Log?
+				self.connection.send(ELPacket(ELNetToServer.SEND_ME_MY_ACTORS, None))
 		return events
 
 class ELYouAreParser(MessageParser):
