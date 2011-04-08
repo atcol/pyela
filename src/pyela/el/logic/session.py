@@ -63,6 +63,8 @@ class ELSession(Session):
 		self.buddies = []
 		self.own_actor_id = -1
 		self.own_actor = None
+		self.game_time = 0 # The ingame time, hour given by int(.gametime/360) and minute by .gametime%360
+		self.current_map = ""
 	
 	def add_actor(self, actor):
 		self.actors.append(actor)
