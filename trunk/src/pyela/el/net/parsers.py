@@ -304,3 +304,25 @@ class ELPingRequestParser(MessageParser):
 		# Send the message back as-is.
 		self.connection.send(ELPacket(ELNetToServer.PING_RESPONSE, packet.data))
 		return []
+
+class ELNewMinuteParser(MessageParser):
+	def parse(self, packet):
+		if len(packet.data) != 2:
+			#TODO: Invalid message
+			return []
+		self.connection.session.game_time = struct.unpack('<H', packet.data)[0]
+		self.connection.session.game_time %= 360 #Clamp to six-hour time
+		event = ELEvent(ELEventType(ELNetFromServer.NEW_MINUTE))
+		event.data = {}
+		event.data['connection'] = self.connection
+		event.data['time'] = self.connection.session.game_time
+		return [event]
+
+class ELChangeMapParser(MessageParser):
+	def parse(self, packet):
+		self.connection.session.current_map = packet.data
+		event = ELEvent(ELEventType(ELNetFromServer.CHANGE_MAP))
+		event.data = {}
+		event.data['connection'] = self.connection
+		event.data['map'] = self.connection.session.current_map
+		return [event]
