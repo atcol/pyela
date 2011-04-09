@@ -31,6 +31,8 @@ class Minimap(gtk.DrawingArea):
 		self.add_events(gtk.gdk.SCROLL_MASK)
 		self.connect("expose_event", self.expose)
 		self.connect("scroll_event", self.mouse_scroll)
+		self.connect("query-tooltip", self.tooltip)
+		self.set_property("has-tooltip", True)
 		self.dots = []
 		self.view_radius = 30 #Number of tiles we see in any direction
 		self.max_view_radius = 50 #The maximum number of tiles we can scroll to see
@@ -60,6 +62,42 @@ class Minimap(gtk.DrawingArea):
 				self.view_radius = self.max_view_radius
 		self.redraw_canvas()
 	
+	def tooltip(self, widget, x, y, keyboard_mode, tooltip):
+		if keyboard_mode:
+			return False
+		dot = self._get_dot_near_position(x, y)
+		if dot == None:
+			return False
+		tooltip.set_text(dot.name)
+		return True
+	
+	def _get_dot_near_position(self, x, y):
+		"""Returns the dot that is covering the given coordinates on the minimap"""
+		map_to_screen_ratio = self._get_map_to_screen_ratio()
+		for dot in self.dots:
+			dot_size = float(dot.size)/2*map_to_screen_ratio
+			dot_x,dot_y = self._game_coords_to_minimap_coords(dot.x, dot.y)
+			if math.floor(math.sqrt((dot_x-x)**2+(dot_y-y)**2)) <= dot_size:
+				return dot
+		return None
+
+	def _game_coords_to_minimap_coords(self, x, y):
+		"""Converts the given EL ingame coordinates to cairo coordinates
+			Returns a tuple with the converted x,y pair"""
+		rect = self.get_allocation()
+		center_x = rect.width/2
+		center_y = rect.height/2
+		radius = min(rect.width/2, rect.height/2)-2 #Radius of the minimap area, -2 to make room for the border
+		map_to_screen_ratio = self._get_map_to_screen_ratio()
+		
+		#Minus in the y calculation because EL's y-axis and cairo's y-axis are inverted
+		return (center_x+int((x-self.own_x)*map_to_screen_ratio), center_y-int((y-self.own_y)*map_to_screen_ratio))
+	
+	def _get_map_to_screen_ratio(self):
+		rect = self.get_allocation()
+		radius = min(rect.width/2, rect.height/2)-2
+		return float(radius)/self.view_radius
+	
 	def redraw_canvas(self):
 		"""Force a redraw of the canvas"""
 		if self.window:
@@ -74,7 +112,7 @@ class Minimap(gtk.DrawingArea):
 		center_x = rect.width/2
 		center_y = rect.height/2
 		radius = min(rect.width/2, rect.height/2)-2
-		map_to_screen_ratio = float(radius)/self.view_radius
+		map_to_screen_ratio = self._get_map_to_screen_ratio()
 
 		#Draw the big circle
 		context.arc(center_x, center_y, radius, 0, 2*math.pi)
@@ -85,9 +123,8 @@ class Minimap(gtk.DrawingArea):
 
 		#Now draw all the blips on the map
 		for dot in self.dots:
-			x = center_x+int((dot.x-self.own_x)*map_to_screen_ratio)
-			y = center_y-int((dot.y-self.own_y)*map_to_screen_ratio) #Minus here because EL's y-axis and cairo's y-axis are inverted
-			if math.sqrt((dot.x-self.own_x)*(dot.x-self.own_x)+(dot.y-self.own_y)*(dot.y-self.own_y)) <= self.view_radius:
+			x, y = self._game_coords_to_minimap_coords(dot.x, dot.y)
+			if math.sqrt((dot.x-self.own_x)**2+(dot.y-self.own_y)**2) <= self.view_radius:
 				#Blip is within seeable range
 				context.arc(x, y, float(dot.size)/2*map_to_screen_ratio, 0, 2*math.pi)
 				context.set_source_rgb(dot.colour[0], dot.colour[1], dot.colour[2])
