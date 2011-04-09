@@ -35,6 +35,7 @@ class ChatGUIEventHandler(BaseEventHandler):
 				ELEventType(ELNetFromServer.BUDDY_EVENT),
 				ELEventType(ELNetFromServer.LOG_IN_NOT_OK),
 				ELEventType(ELNetFromServer.YOU_DONT_EXIST),
+				ELEventType(ELNetFromServer.NEW_MINUTE),
 				NetEventType(NET_CONNECTED),
 				NetEventType(NET_DISCONNECTED)]
 
@@ -84,6 +85,8 @@ class ChatGUIEventHandler(BaseEventHandler):
 				alert.run()
 				alert.destroy()
 				self.gui.do_login()
+			elif event.type.id == ELNetFromServer.NEW_MINUTE:
+				self.gui.tool_vbox.clock_lbl.set_text("Time: %d:%02d" % (int(event.data['time']/60), event.data['time']%60))
 
 	def get_event_types(self):
 		return self.event_types

@@ -356,7 +356,7 @@ class ChatArea(gtk.ScrolledWindow):
 		self.show_all()
 
 class ToolVBox(gtk.VBox):
-	"""A vertical gtk.Box that contains the minimap, channel and buddy list widgets"""
+	"""A vertical gtk.Box that contains the minimap, clock, channel and buddy list widgets"""
 
 	def __init__(self):
 		super(ToolVBox, self).__init__()
@@ -368,6 +368,10 @@ class ToolVBox(gtk.VBox):
 		self.minimap = Minimap()
 		self.minimap.set_size_request(200, 200)
 		self.pack_start(self.minimap, False, False, 0)
+
+		# Add a digital clock for ingame time
+		self.clock_lbl = gtk.Label("Time: 0:00")
+		self.pack_start(self.clock_lbl, False)
 
 		# set-up the channel list tree view
 		#  List storage
