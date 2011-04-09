@@ -370,7 +370,7 @@ class ToolVBox(gtk.VBox):
 		self.pack_start(self.minimap, False, False, 0)
 
 		# Add a digital clock for ingame time
-		self.clock_lbl = gtk.Label("Time: 0:00")
+		self.clock_lbl = gtk.Label("Time: %d:%02d" % (0,0))
 		self.pack_start(self.clock_lbl, False)
 
 		# set-up the channel list tree view
