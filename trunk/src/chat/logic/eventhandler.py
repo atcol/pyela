@@ -116,6 +116,9 @@ class MinimapEventHandler(BaseEventHandler):
 					self.minimap.set_own_pos(actor.x_pos, actor.y_pos)
 				actor.dot = MinimapDot(actor.x_pos, actor.y_pos)
 				actor.dot.colour = actor.name_colour
+				actor.dot.name = actor.name
+				if actor.guild != None:
+					actor.dot.name += " %s" % actor.guild
 				self.minimap.add_dot(actor.dot)
 			elif event.type.id == ELNetFromServer.REMOVE_ACTOR:
 				actor = event.data['actor']
