@@ -23,7 +23,7 @@ from pyela.el.net.elconstants import ELConstants, ELNetFromServer
 from pyela.el.logic.events import ELEventType
 from pyela.logic.eventhandlers import BaseEventHandler
 from pyela.el.logic.eventmanagers import ELSimpleEventManager
-from pyela.el.util.strings import el_str_to_str, is_colour
+from pyela.el.util.strings import is_colour
 from pyela.logic.event import NetEventType, NET_CONNECTED, NET_DISCONNECTED
 
 class ChatGUIEventHandler(BaseEventHandler):
@@ -51,9 +51,12 @@ class ChatGUIEventHandler(BaseEventHandler):
 			if event.type.id == ELNetFromServer.RAW_TEXT:
 				#TODO: Proper colour handling, see http://python.zirael.org/e-gtk-textview2.html for examples
 				self.gui.append_chat("\n")
-				text = el_str_to_str(event.data['raw'])
+				text = event.data['raw']
 				if is_colour(text[0]):
-					colour_code = ord(text[0])-127
+					if type(text[0]) == str:
+						colour_code = ord(text[0])-127
+					else:
+						colour_code = text[0]-127
 					tag = self.gui.gtk_el_colour_table[colour_code]
 				else:
 					tag = None

@@ -21,54 +21,73 @@ from pyela.el.net.elconstants import ELConstants
 
 def is_colour(ch):
 	"""Returns true if ch is a colour code"""
-	return ord(ch) >= 127+ELConstants.C_LBOUND and ord(ch) <= 127+ELConstants.C_UBOUND
+	if type(ch) == str:
+		return ord(ch) >= 127+ELConstants.C_LBOUND and ord(ch) <= 127+ELConstants.C_UBOUND
+	else:
+		return ch >= 127+ELConstants.C_LBOUND and ch <= 127+ELConstants.C_UBOUND
 
 def is_special_char(ch):
 	"""Return true if ch is a foreign character"""
 	#The following greater-than is not a typo
-	return ord(ch) > 127+ELConstants.SPECIALCHAR_LBOUND and ord(ch) <= 127+ELConstants.SPECIALCHAR_UBOUND
+	if type(ch) == str:
+		return ord(ch) > ELConstants.SPECIALCHAR_LBOUND and ord(ch) <= ELConstants.SPECIALCHAR_UBOUND
+	else:
+		return ch > ELConstants.SPECIALCHAR_LBOUND and ch <= ELConstants.SPECIALCHAR_UBOUND
 
-special_char_table = {127+ELConstants.EACUTE:'é', 127+ELConstants.ACIRC:'â', 127+ELConstants.AGRAVE:'à',
-		127+ELConstants.CCEDIL:'ç', 127+ELConstants.ECIRC:'ê', 127+ELConstants.EUML:'ë', 127+ELConstants.EGRAVE:'è',
-		127+ELConstants.IUML:'ï', 127+ELConstants.OCIRC:'ô', 127+ELConstants.uGRAVE:'ù', 127+ELConstants.aUMLAUT:'ä',
-		127+ELConstants.oUMLAUT:'ö', 127+ELConstants.uUMLAUT:'ü', 127+ELConstants.AUMLAUT:'Ä',
-		127+ELConstants.OUMLAUT:'Ö', 127+ELConstants.UUMLAUT:'Ü', 127+ELConstants.DOUBLES:'ß',
-		127+ELConstants.aELIG:'æ', 127+ELConstants.oSLASH:'ø', 127+ELConstants.aRING:'å',
-		127+ELConstants.AELIG:'Æ', 127+ELConstants.OSLASH:'Ø', 127+ELConstants.ARING:'Å',
-		127+ELConstants.EnyE:'ñ', 127+ELConstants.ENYE:'Ñ', 127+ELConstants.aACCENT:'á', 127+ELConstants.AACCENT:'Á',
-		127+ELConstants.EACCENT:'É', 127+ELConstants.iACCENT:'í', 127+ELConstants.IACCENT:'Í',
-		127+ELConstants.oACCENT:'ó', 127+ELConstants.OACCENT:'Ó', 127+ELConstants.uACCENT:'ú',
-		127+ELConstants.UACCENT:'Ú'}
+special_char_table = {ELConstants.EACUTE:u'é', ELConstants.ACIRC:u'â', ELConstants.AGRAVE:u'à',
+		ELConstants.CCEDIL:u'ç', ELConstants.ECIRC:u'ê', ELConstants.EUML:u'ë', ELConstants.EGRAVE:u'è',
+		ELConstants.IUML:u'ï', ELConstants.OCIRC:u'ô', ELConstants.uGRAVE:u'ù', ELConstants.aUMLAUT:u'ä',
+		ELConstants.oUMLAUT:u'ö', ELConstants.uUMLAUT:u'ü', ELConstants.AUMLAUT:u'Ä',
+		ELConstants.OUMLAUT:u'Ö', ELConstants.UUMLAUT:u'Ü', ELConstants.DOUBLES:u'ß',
+		ELConstants.aELIG:u'æ', ELConstants.oSLASH:u'ø', ELConstants.aRING:u'å',
+		ELConstants.AELIG:u'Æ', ELConstants.OSLASH:u'Ø', ELConstants.ARING:u'Å',
+		ELConstants.EnyE:u'ñ', ELConstants.ENYE:u'Ñ', ELConstants.aACCENT:u'á', ELConstants.AACCENT:u'Á',
+		ELConstants.EACCENT:u'É', ELConstants.iACCENT:u'í', ELConstants.IACCENT:u'Í',
+		ELConstants.oACCENT:u'ó', ELConstants.OACCENT:u'Ó', ELConstants.uACCENT:u'ú',
+		ELConstants.UACCENT:u'Ú'}
 
 def special_char_to_char(sch):
-	return special_char_table[ord(sch)]
+	"""Convert an EL special character (integer value > 127) to a regular string-compatible character"""
+	if type(sch) != str:
+		sch = chr(sch)
+	return unicode(sch, 'iso8859')
 
-def strip_chars(str):
-	"""Remove protocol or control characters from the given string"""
-	stripped_str = ""
+def char_to_special_char(ch):
+	"""Convert a non-ascii character (integer value > 127) to an EL-compatible special character"""
+	#reverse_table = dict([(v, k) for (k, v) in special_char_table.iteritems()])
+	#if ch in reverse_table:
+	#	return reverse_table[ch]
+	#else:
+	#	return None
+	ch = ch.encode('iso8859', 'replace')
+	if is_special_char(ch):
+		return ch
+	else:
+		return None
 
-	for char in str:
+def strip_chars(s):
+	"""Remove protocol and control characters from the given string"""
+	stripped_str = u""
+
+	for char in s:
 		if not is_colour(char):
 			if is_special_char(char):
 				stripped_str += special_char_to_char(char)
-			else:
-				stripped_str += char
-
-	if ord(stripped_str[-1]) == 0:
-		stripped_str = stripped_str[:-1]
-
+			elif ord(char) < 127 and ord(char) > 0:
+				# Skip non-ascii characters
+				stripped_str += unicode(char)
 	return stripped_str
 
-def el_str_to_str(str):
-	"""Convert a string containing EL protocol characters (as in special_char_table) to a regular string, but maintain colour codes"""
-	out_str = ""
-	for char in str:
-		if is_special_char(char):
-			out_str += special_char_to_char(char)
+def str_to_el_str(s):
+	"""Convert the special characters in a string to EL format and discard invalid characters"""
+	out_str = bytearray()
+	for char in s:
+		if ord(char) > 127:
+			elch = char_to_special_char(char)
+			if elch != None:
+				out_str.append(elch)
 		else:
-			out_str += char
-	if ord(out_str[-1]) == 0:
-		out_str = out_str[:-1]
+			out_str += char.encode('ascii', 'replace')
 	return out_str
 
 def split_str(str, max_len):
@@ -117,7 +136,6 @@ el_colour_char_table = {ELConstants.C_RED1:( 1.0000 , 0.7020 , 0.7569 ),
 		ELConstants.C_GREY3:( 0.6196 , 0.6196 , 0.6196 ),
 		ELConstants.C_GREY4:( 0.1569 , 0.1569 , 0.1569 )
 		}
-
 
 def el_colour_to_rgb(colour):
 	if colour > 127:
