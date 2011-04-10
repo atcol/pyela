@@ -98,7 +98,7 @@ class ELConnection(BaseConnection):
 			self.packet_handler = BasePacketHandler() #TODO: Should this be BasePacketHandler or BaseELPacketHandler?
 		else:
 			self.packet_handler = packet_handler
-		self._inp = ""# this is temporary
+		self._inp = bytearray()
 		self.error = ""
 
 	def set_properties(self, config):
@@ -112,7 +112,7 @@ class ELConnection(BaseConnection):
 		self.port = self.config.getint('login', 'port')
 		self.MAX_CON_TRIES = config.getint('actions', 'max_recon')
 		self.MAX_LAST_SEND_SECS = config.getint('actions', 'max_send_secs')
-		self._inp = "" # input buffer, for incomplete messages
+		self._inp = bytearray() # input buffer, for incomplete messages
 	
 	def fileno(self):
 		"""Allows this object to be used with poll() etc"""
@@ -251,6 +251,7 @@ class ELConnection(BaseConnection):
 			self.status = DISCONNECTED
 			self.disconnect()
 			raise ConnectionException("Other end terminated the connection")
+		# When python 3 is required: self._inp += bytearray(ret)
 		self._inp += ret
 		for packet in parse_message():
 			packets.append(packet)

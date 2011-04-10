@@ -28,7 +28,7 @@ from pyela.el.net.packethandlers import ExtendedELPacketHandler
 from pyela.el.common.exceptions import ConnectionException
 from pyela.el.logic.session import ELSession
 from pyela.el.logic.eventmanagers import ELSimpleEventManager
-from pyela.el.util.strings import el_colour_char_table, el_str_to_str
+from pyela.el.util.strings import el_colour_char_table, str_to_el_str
 from gui.login import LoginGUI
 from gui.minimapwidget import Minimap
 from gui.networking_error import NetworkingErrorAlert
@@ -217,12 +217,13 @@ class ChatGUI(gtk.Window):
 	def send_msg(self, widget, data=None):
 		msg = self.input_hbox.msg_txt.get_text()
 		if msg != '':
-			type = ELNetToServer.RAW_TEXT
+			t = ELNetToServer.RAW_TEXT
 			if self.input_hbox.msg_txt.get_text().startswith('/'):
-				type = ELNetToServer.SEND_PM
+				t = ELNetToServer.SEND_PM
 				msg = self.input_hbox.msg_txt.get_text()[1:]
-				
-			self.elc.send(ELPacket(type, msg))
+			
+			msg = str_to_el_str(unicode(msg))
+			self.elc.send(ELPacket(t, msg))
 			self.input_hbox.msg_txt.set_text("")
 			#input text buffer handling
 			if self.msgb_idx > 0:
