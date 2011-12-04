@@ -67,6 +67,11 @@ class ChatGUIEventHandler(BaseEventHandler):
 					self.gui.append_chat([text.replace(']', " @ %s]" % self.gui.elc.session.channels[int(channel - ELConstants.CHAT_CHANNEL1)].number)], tag)
 				else:
 					self.gui.append_chat([event.data['text']], tag)
+				#Check for PM
+				if len(text) > 12 and text[:9] == "[PM from ":
+					name_end = text[9:].find(':')
+					if name_end != -1:
+						self.gui.last_pm_from = text[9:9+name_end]
 			elif event.type.id == ELNetFromServer.GET_ACTIVE_CHANNELS:
 				#Just rebuild the GUI channel list
 				self.gui.tool_vbox.rebuild_channel_list(event.data['channels'])

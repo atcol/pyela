@@ -40,7 +40,7 @@ class ChatGUI(gtk.Window):
 		self.msg_buff = [] # list of messages, for CTRL+UP/UP and DOWN
 		self.msgb_idx = 0
 		self.last_key = None # for // name completion
-		self.last_pm_to = ""
+		self.last_pm_from = ""
 		self.elc = None
 		self.g_watch_sources = []
 		ELSimpleEventManager().add_handler(ChatGUIEventHandler(self))
@@ -75,7 +75,7 @@ class ChatGUI(gtk.Window):
 
 		# setup the chat input & send button
 		self.input_hbox = ChatInputHBox()
-		self.input_hbox.msg_txt.connect('key_press_event', self.__input_keypress)
+		self.input_hbox.msg_txt.connect('key-press-event', self.__input_keypress)
 		self.input_hbox.send_btn.connect('clicked', self.send_msg)
 		self.vbox.pack_start(self.input_hbox, False, False, 0)
 		
@@ -180,7 +180,7 @@ class ChatGUI(gtk.Window):
 				self.chat_area.chat_buff.insert(end, msg)
 		self.chat_area.chat_view.scroll_to_mark(self.chat_area.chat_buff.get_insert(), 0)
 
-	def __input_keypress(self, widget, event=None):
+	def __input_keypress(self, widget, event):
 		if event.keyval == gtk.keysyms.Return:
 			self.send_msg(None, None)
 			return True
@@ -189,29 +189,30 @@ class ChatGUI(gtk.Window):
 				#This is the first up-keypress, store what's in the input box as the first entry in the buffer
 				self.msg_buff.insert(0, self.input_hbox.msg_txt.get_text())
 				self.msgb_idx = 1
-				self.input_hbox.msg_txt.set_text(self.msg_buff[self.msgb_idx])
+				widget.set_text(self.msg_buff[self.msgb_idx])
 			elif self.msgb_idx > 0 and self.msgb_idx < len(self.msg_buff)-1:
 				#Further browsing upwards in the buffer
 				self.msgb_idx += 1
-				self.input_hbox.msg_txt.set_text(self.msg_buff[self.msgb_idx])
+				widget.set_text(self.msg_buff[self.msgb_idx])
 			#Position the cursor at the end of the input
 			self.input_hbox.msg_txt.set_position(self.input_hbox.msg_txt.get_text_length())
 			return True
 		elif event.keyval == gtk.keysyms.Down:
 			if self.msgb_idx > 1:
 				self.msgb_idx -= 1
-				self.input_hbox.msg_txt.set_text(self.msg_buff[self.msgb_idx])
+				widget.set_text(self.msg_buff[self.msgb_idx])
 			elif self.msgb_idx == 1:
 				#We're at the bottom of the buffer, restore what was initially in the input box and remove it from the list of input
-				self.input_hbox.msg_txt.set_text(self.msg_buff.pop(0))
+				widget.set_text(self.msg_buff.pop(0))
 				self.msgb_idx = 0
 			#Position the cursor at the end of the input
-			self.input_hbox.msg_txt.set_position(self.input_hbox.msg_txt.get_text_length())
+			widget.set_position(self.input_hbox.msg_txt.get_text_length())
 			return True
 		return False
-	
+
 	def __main_keypress(self, widget, event=None):
 		if event.state == gtk.gdk.CONTROL_MASK and event.keyval == gtk.keysyms.q:
+			#Quit on ctrl+q
 			sys.exit(0)
 	
 	def send_msg(self, widget, data=None):
@@ -222,15 +223,20 @@ class ChatGUI(gtk.Window):
 				t = ELNetToServer.SEND_PM
 				msg = self.input_hbox.msg_txt.get_text()[1:]
 			
-			msg = str_to_el_str(unicode(msg))
-			self.elc.send(ELPacket(t, msg))
+			el_msg = str_to_el_str(unicode(msg))
+			self.elc.send(ELPacket(t, el_msg))
 			self.input_hbox.msg_txt.set_text("")
 			#input text buffer handling
 			if self.msgb_idx > 0:
 				#Remove any un-sent text from the input buffer
 				self.msg_buff.pop(0)
 			self.msgb_idx = 0
-			self.msg_buff.insert(0, msg)
+			if t == ELNetToServer.SEND_PM:
+				#Re-add the / that was removed above
+				msg = '/'+msg
+			if len(self.msg_buff) == 0 or self.msg_buff[0] != msg:
+				#Avoid duplicate entries in the backlog
+				self.msg_buff.insert(0, msg)
 		return True
 	
 	def __keep_alive(self):
