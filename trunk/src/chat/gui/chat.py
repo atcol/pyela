@@ -41,7 +41,7 @@ class ChatGUI(gtk.Window):
 		self.msg_buff = [] # list of messages, for CTRL+UP/UP and DOWN
 		self.msgb_idx = 0
 		self.last_key = None # for // name completion
-		self.last_pm_from = ""
+		self.last_pm_from = None
 		self.elc = None
 		self.g_watch_sources = []
 		ELSimpleEventManager().add_handler(ChatGUIEventHandler(self))
@@ -222,11 +222,20 @@ class ChatGUI(gtk.Window):
 			#Position the cursor at the end of the input
 			widget.set_position(self.input_hbox.msg_txt.get_text_length())
 			return True
+		elif event.keyval == gtk.keysyms.slash and len(widget.get_text()):
+			#Allow "//" input to reply to last person we received a PM from
+			old_text = widget.get_text()
+			if self.last_pm_from != None and old_text[0] == '/' and widget.get_position() == 1:
+				new_text = '/'+self.last_pm_from+' '+old_text[1:]
+				widget.set_text(new_text)
+				widget.set_position(1+len(self.last_pm_from)+1)
+				return True
 		return False
-	
+
 	def __main_keypress(self, widget, event=None):
-		if event.state == gtk.gdk.CONTROL_MASK and event.keyval == gtk.keysyms.q:
-			#Quit on ctrl+q
+		if (event.state == gtk.gdk.CONTROL_MASK and event.keyval == gtk.keysyms.q) or \
+			(event.state == gtk.gdk.MOD1_MASK and event.keyval == gtk.keysyms.x):
+			#Quit on ctrl+q or alt+x
 			sys.exit(0)
 	
 	def send_msg(self, widget, data=None):
@@ -375,6 +384,7 @@ class ChatArea(gtk.ScrolledWindow):
 		self.chat_buff.set_data('end_mark', end_mark)
 		self.chat_view = gtk.TextView(self.chat_buff)
 		self.chat_view.set_editable(False)
+		self.chat_view.set_can_focus(False)
 		self.chat_view.set_wrap_mode(gtk.WRAP_WORD_CHAR)
 		self.chat_view.set_cursor_visible(False)
 		self.add(self.chat_view)
