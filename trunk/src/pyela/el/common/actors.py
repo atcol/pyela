@@ -40,7 +40,7 @@ class ELActor(object):
 	def clamp_z_rot(self):
 		"""Makes sure z_rot is between 0 and 360"""
 		while self.z_rot >= 360:
-			z_rot -= 360
+			self.z_rot -= 360
 		while self.z_rot < 0:
 			self.z_rot += 360
 	
