@@ -18,6 +18,7 @@ import pygtk
 pygtk.require('2.0')
 import gtk
 import gobject
+import math
 import struct
 import sys
 
@@ -106,10 +107,18 @@ class ChatGUI(gtk.Window):
 		"""Build a table of gtk textbuffer tags, mapping EL colour codes"""
 		self.gtk_el_colour_table = {}
 		for code,rgb in el_colour_char_table.items():
-			hexcode = "#%02x%02x%02x" % (rgb[0]*255,rgb[1]*255,rgb[2]*255)
-			if hexcode == "#ffffff":
+			if rgb == (1.0,1.0,1.0):
 				#White is invisible on our white background, so fix that
-				hexcode = "#000000"
+				rgb = (0, 0, 0)
+			else:
+				#Calculate the brightness of the colour using the HSP algorithm
+				# (http://alienryderflex.com/hsp.html)
+				brightness = math.sqrt(0.241*(rgb[0]*255)**2 + 0.961*(rgb[1]*255)**2 + 0.068*(rgb[2]*255)**2)
+				threshold = 180
+				if brightness > threshold:
+					diff = (brightness-threshold)/255
+					rgb = map(lambda x: max(0, x-diff), rgb)
+			hexcode = "#%02x%02x%02x" % (rgb[0]*255,rgb[1]*255,rgb[2]*255)
 			self.gtk_el_colour_table[code] = self.chat_area.chat_buff.create_tag("el_colour_%i"%code, foreground=hexcode)
 
 	def do_login(self):
@@ -178,7 +187,12 @@ class ChatGUI(gtk.Window):
 				self.chat_area.chat_buff.insert_with_tags(end, msg, tag)
 			else:
 				self.chat_area.chat_buff.insert(end, msg)
-		self.chat_area.chat_view.scroll_to_mark(self.chat_area.chat_buff.get_insert(), 0)
+
+		#Get the current scrollbar position and only scroll if the user is looking
+		# at the bottom line (to allow scrolling up to read backlog)
+		adj = self.chat_area.get_vadjustment()
+		if adj.value + adj.page_size == adj.upper:
+			self.chat_area.chat_view.scroll_to_mark(self.chat_area.chat_buff.get_data('end_mark'), 0.0)
 
 	def __input_keypress(self, widget, event):
 		if event.keyval == gtk.keysyms.Return:
@@ -209,7 +223,7 @@ class ChatGUI(gtk.Window):
 			widget.set_position(self.input_hbox.msg_txt.get_text_length())
 			return True
 		return False
-
+	
 	def __main_keypress(self, widget, event=None):
 		if event.state == gtk.gdk.CONTROL_MASK and event.keyval == gtk.keysyms.q:
 			#Quit on ctrl+q
@@ -356,9 +370,13 @@ class ChatArea(gtk.ScrolledWindow):
 
 		# setup the chat text area
 		self.chat_buff = gtk.TextBuffer()
+		# create a mark at the end of the buffer that we can scroll to
+		end_mark = self.chat_buff.create_mark('end', self.chat_buff.get_end_iter(), False)
+		self.chat_buff.set_data('end_mark', end_mark)
 		self.chat_view = gtk.TextView(self.chat_buff)
 		self.chat_view.set_editable(False)
 		self.chat_view.set_wrap_mode(gtk.WRAP_WORD_CHAR)
+		self.chat_view.set_cursor_visible(False)
 		self.add(self.chat_view)
 		self.show_all()
 
