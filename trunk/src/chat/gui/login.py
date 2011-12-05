@@ -14,9 +14,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
-import pygtk
-pygtk.require('2.0')
-import gtk
+from gi.repository import Gtk
 import time
 import select
 
@@ -24,7 +22,7 @@ from pyela.el.net.connections import ELConnection
 from pyela.el.net.elconstants import ELNetFromServer, ELNetToServer
 from pyela.el.util.strings import strip_chars
 
-class LoginGUI(gtk.Dialog):
+class LoginGUI(Gtk.Dialog):
 	"""A simple login GUI that acts as a dialog window of a parent
 	
 	Parameters:
@@ -39,31 +37,31 @@ class LoginGUI(gtk.Dialog):
 
 	def __setup(self, defaults={}):
 		#TODO: Display green v or red x icon in the entries, indicating valid or invalid input with a mouseover tooltip that provides useful info
-		self.set_position(gtk.WIN_POS_CENTER_ON_PARENT)
+		self.set_position(Gtk.WindowPosition.CENTER_ON_PARENT)
 		self.set_border_width(6)
 
 		# create the table
-		self.table = gtk.Table(4, 2)
+		self.table = Gtk.Table(4, 2)
 		self.table.set_col_spacing(0, 12)
 		self.table.set_border_width(6)
 
 		# create the labels
-		self.login_lbl = gtk.Label('_Username:')
+		self.login_lbl = Gtk.Label('_Username:')
 		self.login_lbl.set_property("use-underline", True)
 		self.login_lbl.set_alignment(0.0, 0.5)
 		self.login_lbl.show()
 
-		self.passwd_lbl = gtk.Label('Pass_word:')
+		self.passwd_lbl = Gtk.Label('Pass_word:')
 		self.passwd_lbl.set_property("use-underline", True)
 		self.passwd_lbl.set_alignment(0.0, 0.5)
 		self.passwd_lbl.show()
 
-		self.host_lbl = gtk.Label('_Host:')
+		self.host_lbl = Gtk.Label('_Host:')
 		self.host_lbl.set_property("use-underline", True)
 		self.host_lbl.set_alignment(0.0, 0.5)
 		self.host_lbl.show()
 
-		self.port_lbl = gtk.Label('_Port:')
+		self.port_lbl = Gtk.Label('_Port:')
 		self.port_lbl.set_property("use-underline", True)
 		self.port_lbl.set_alignment(0.0, 0.5)
 		self.port_lbl.show()
@@ -74,7 +72,8 @@ class LoginGUI(gtk.Dialog):
 		self.table.attach(self.port_lbl, 0, 1, 3, 4)
 
 		# create the input boxes
-		self.user_txt = gtk.Entry(max=16)
+		self.user_txt = Gtk.Entry()
+		self.user_txt.set_max_length(16)
 		self.login_lbl.set_mnemonic_widget(self.user_txt)
 		#Pressing return in the user input moves focus to the next (password) input
 		self.user_txt.connect('activate', self._focus_next)
@@ -83,7 +82,7 @@ class LoginGUI(gtk.Dialog):
 		self.user_txt.connect('changed', self._check_entries_ok)
 		self.user_txt.show()
 		
-		self.passwd_txt = gtk.Entry(max=0)
+		self.passwd_txt = Gtk.Entry()
 		self.passwd_lbl.set_mnemonic_widget(self.passwd_txt)
 		self.passwd_txt.set_activates_default(True)
 		self.passwd_txt.set_visibility(False)
@@ -92,7 +91,7 @@ class LoginGUI(gtk.Dialog):
 		self.passwd_txt.connect('changed', self._check_entries_ok)
 		self.passwd_txt.show()
 		
-		self.host_txt = gtk.Entry(max=0)
+		self.host_txt = Gtk.Entry()
 		self.host_lbl.set_mnemonic_widget(self.host_txt)
 		self.host_txt.set_activates_default(True)
 		if 'host' in defaults:
@@ -103,8 +102,8 @@ class LoginGUI(gtk.Dialog):
 		self.host_txt.connect('changed', self._check_entries_ok)
 		self.host_txt.show()
 		
-		self.port_adj = gtk.Adjustment(value=2001, lower=1, upper=65535, step_incr=1)
-		self.port_spin = gtk.SpinButton(adjustment=self.port_adj)
+		self.port_adj = Gtk.Adjustment(value=2001, lower=1, upper=65535, step_increment=1)
+		self.port_spin = Gtk.SpinButton(adjustment=self.port_adj)
 		self.port_lbl.set_mnemonic_widget(self.port_spin)
 		self.port_spin.set_activates_default(True)
 		if 'port' in defaults:
@@ -114,12 +113,12 @@ class LoginGUI(gtk.Dialog):
 		self.table.attach(self.passwd_txt, 1, 2, 1, 2)
 		self.table.attach(self.host_txt, 1, 2, 2, 3)
 		self.table.attach(self.port_spin, 1, 2, 3, 4)
-		self.get_content_area().pack_start(self.table)
+		self.get_content_area().pack_start(self.table, False, False, 0)
 
 		# add the components to the action area
-		self.login_btn = self.add_button("_Login", gtk.RESPONSE_OK)
-		self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
-		self.set_default_response(gtk.RESPONSE_OK)
+		self.login_btn = self.add_button("_Login", Gtk.ResponseType.OK)
+		self.add_button(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL)
+		self.set_default_response(Gtk.ResponseType.OK)
 		self._check_entries_ok()
 
 		# add the boxes to the window
@@ -130,7 +129,7 @@ class LoginGUI(gtk.Dialog):
 	def _focus_next(self, widget):
 		"""Signal handler for return-key action, moves keyboard focus to
 		the next widget."""
-		self.do_move_focus(self, gtk.DIR_TAB_FORWARD)
+		self.do_move_focus(self, Gtk.DIR_TAB_FORWARD)
 	
 	def _check_entries_ok(self, widget=None, a=None, b=None):
 		"""Signal handler for the 'changed' signal that validates the entry inputs, changing the

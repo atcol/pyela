@@ -15,9 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
 
-import pygtk
-pygtk.require('2.0')
-import gtk
+from gi.repository import Gtk, Gdk
 import math
 from pyela.logic.eventhandlers import BaseEventHandler
 from pyela.el.logic.events import ELEventType
@@ -25,12 +23,12 @@ from pyela.el.logic.eventmanagers import ELSimpleEventManager
 from pyela.el.net.elconstants import ELNetFromServer
 from logic.eventhandler import MinimapEventHandler
 
-class Minimap(gtk.DrawingArea):
+class Minimap(Gtk.DrawingArea):
 	def __init__(self):
-		gtk.DrawingArea.__init__(self)
-		self.add_events(gtk.gdk.SCROLL_MASK)
-		self.connect("expose_event", self.expose)
-		self.connect("scroll_event", self.mouse_scroll)
+		Gtk.DrawingArea.__init__(self)
+		self.add_events(Gdk.EventMask.SCROLL_MASK)
+		self.connect("draw", self.draw)
+		self.connect("scroll-event", self.mouse_scroll)
 		self.connect("query-tooltip", self.tooltip)
 		self.set_property("has-tooltip", True)
 		self.dots = []
@@ -41,22 +39,13 @@ class Minimap(gtk.DrawingArea):
 		self.own_y = 0
 		ELSimpleEventManager().add_handler(MinimapEventHandler(self))
 	
-	def expose(self, widget, event):
-		"""Expose GTK event handler"""
-		self.context = widget.window.cairo_create()
-		self.context.rectangle(event.area.x, event.area.y,
-								event.area.width, event.area.height)
-		self.context.clip()
-		self.draw(self.context)
-		return False
-	
 	def mouse_scroll(self, widget, event):
 		"""Scroll GTK event handler, zooms the minimap"""
-		if event.direction == gtk.gdk.SCROLL_UP:
+		if event.direction == Gdk.ScrollDirection.UP:
 			self.view_radius -= 1
 			if self.view_radius < self.min_view_radius:
 				self.view_radius = self.min_view_radius
-		elif event.direction == gtk.gdk.SCROLL_DOWN:
+		elif event.direction == Gdk.ScrollDirection.DOWN:
 			self.view_radius += 1
 			if self.view_radius > self.max_view_radius:
 				self.view_radius = self.max_view_radius
@@ -100,13 +89,19 @@ class Minimap(gtk.DrawingArea):
 	
 	def redraw_canvas(self):
 		"""Force a redraw of the canvas"""
-		if self.window:
+		#http://developer.gnome.org/gtk3/stable/GtkWidget.html#gtk-widget-queue-draw-region
+		window = self.get_property('window')
+		if window:
 			alloc = self.get_allocation()
-			rect = gtk.gdk.Rectangle(0, 0, alloc.width, alloc.height)
-			self.window.invalidate_rect(rect, True)
-			self.window.process_updates(True)
+			rect = Gdk.Rectangle()
+			rect.x = 0
+			rect.y = 0
+			rect.width = alloc.width
+			rect.height = alloc.height
+			window.invalidate_rect(rect, True)
+			window.process_updates(True)
 	
-	def draw(self, context):
+	def draw(self, widget, context):
 		#First some initial calculations
 		rect = self.get_allocation()
 		center_x = rect.width/2
