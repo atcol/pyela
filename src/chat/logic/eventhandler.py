@@ -15,9 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
 
-import pygtk
-import gtk
-import gobject
+from gi.repository import Gtk as gtk
 
 from pyela.el.net.elconstants import ELConstants, ELNetFromServer
 from pyela.el.logic.events import ELEventType
@@ -87,8 +85,8 @@ class ChatGUIEventHandler(BaseEventHandler):
 				self.gui.append_chat([msg])
 				self.gui.elc.disconnect()
 				alert = gtk.MessageDialog(self.gui, 
-									gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, 
-									gtk.BUTTONS_CLOSE, "Login failed")
+									gtk.DialogFlags.MODAL, gtk.MessageType.ERROR, 
+									gtk.ButtonsType.CLOSE, "Login failed")
 				alert.format_secondary_text(msg)
 				alert.run()
 				alert.destroy()

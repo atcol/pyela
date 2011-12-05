@@ -1,4 +1,5 @@
 # Copyright 2008 Alex Collins
+# Copyright 2011 Vegar Storvann
 #
 # This file is part of Pyela.
 # 
@@ -14,4 +15,5 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
-all = ["login", "chat", "minimapwidget", "minimapdot", "networking_error"]
+
+all = ["login", "chat", "minimapwidget", "minimapdot", "networking_error", "locationlbl"]
