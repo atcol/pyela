@@ -52,7 +52,7 @@ class BaseEvent(object):
 		pass
 
 
-(NET_CONNECTED, NET_DISCONNECTED) = map(lambda x: x+1, range(2))
+(NET_CONNECTED, NET_DISCONNECTED) = list(range(1,3))
 
 class NetEventType(BaseEventType):
 	def __init__(self, id):

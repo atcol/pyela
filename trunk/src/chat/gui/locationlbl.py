@@ -40,7 +40,7 @@ class LocationLblEventHandler(BaseEventHandler):
 
 	def notify(self, event):
 		if event.type.id == ELNetFromServer.RAW_TEXT:
-			if ord(event.data['raw'][0]) == ELConstants.C_GREEN1+127 and event.data['text'][:11] == u'You are in ':
+			if event.data['raw'][0] == ELConstants.C_GREEN1+127 and event.data['text'][:11] == 'You are in ':
 				location = event.data['text'][11:]
 				location = location.replace("  ", " ") #remove double spaces
 				self.label.set_text(location)

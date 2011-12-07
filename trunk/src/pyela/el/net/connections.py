@@ -19,7 +19,6 @@ import os
 import logging
 import struct
 import time
-import ConfigParser
 import collections
 
 from pyela.net.connections import BaseConnection
@@ -132,7 +131,7 @@ class ELConnection(BaseConnection):
 		self.con_tries += 1
 		if not self.__setup_socket():
 			return False
-		self._inp = "" #Discard old data
+		self._inp = bytearray() #Discard old data
 		return self._send_login()
 
 	def reconnect(self):
@@ -159,7 +158,7 @@ class ELConnection(BaseConnection):
 			self.session.name == "" or self.session.password == "":
 			self.error = "Username or password not set"
 			return False
-		login_str = '%s %s\0' % (self.session.name, self.session.password)
+		login_str = ('%s %s\0' % (self.session.name, self.session.password)).encode('iso8859')
 		try:
 			log.info('Connecting to %s:%d' % (self.host, self.port))
 			ret = self.socket.connect_ex((self.host, self.port))
@@ -235,7 +234,7 @@ class ELConnection(BaseConnection):
 		def parse_message():
 			"""Return the packet type (see ELConstants) and its data as a tuple"""
 			while len(self._inp) >= 3:
-				header = struct.unpack('<BH', self._inp[:3])
+				header = struct.unpack('<BH', str(self._inp[:3]))
 				msg_len = header[1]-1
 				if len(self._inp) >= msg_len+3:
 					yield ELPacket(header[0], self._inp[3:3+msg_len])

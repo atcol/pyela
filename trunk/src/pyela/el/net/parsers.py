@@ -25,7 +25,7 @@ import struct
 import time
 
 from pyela.el.common.actors import ELActor
-from pyela.el.util.strings import strip_chars, split_str, is_colour, el_colour_to_rgb
+from pyela.el.util.strings import strip_chars, split_str, is_colour, el_colour_to_rgb, bytes_find, bytes_rfind
 from pyela.el.net.packets import ELPacket
 from pyela.el.net.elconstants import ELNetFromServer, ELNetToServer, ELConstants
 from pyela.el.net.channel import Channel
@@ -35,6 +35,7 @@ from pyela.el.logic.events import ELEventType, ELEvent
 log = logging.getLogger('pyela.el.net.parsers')
 em = ELSimpleEventManager()
 
+#TODO:Py3k: When switching to py3k, remove all str() casts in the struct.unpack calls.
 class MessageParser(object):
 	"""A message received from the Eternal Lands server"""
 
@@ -54,7 +55,7 @@ class ELRawTextMessageParser(MessageParser):
 		event = ELEvent(ELEventType(ELNetFromServer.RAW_TEXT))
 		event.data = {}
 		event.data['connection'] = self.connection #The connection the message origins from
-		event.data['channel'] = struct.unpack('<b', packet.data[0])[0] # The channel of the message
+		event.data['channel'] = packet.data[0] # The channel of the message
 		event.data['text'] = strip_chars(packet.data[1:]) # The stripped text of the message, no colour codes, special characters translated to utf8
 		event.data['raw'] = packet.data[1:] # The raw text including colour codes and untranslated special characters
 		return [event]
@@ -67,7 +68,7 @@ class ELAddActorMessageParser(MessageParser):
 		actor.id, actor.x_pos, actor.y_pos, actor.z_pos, \
 		actor.z_rot, actor.type, frame, actor.max_health, \
 		actor.cur_health, actor.kind_of_actor \
-		= struct.unpack('<HHHHHBBHHB', packet.data[:17])
+		= struct.unpack('<HHHHHBBHHB', str(packet.data[:17]))
 		events = []
 
 		#Remove the buffs from the x/y coordinates
@@ -76,18 +77,18 @@ class ELAddActorMessageParser(MessageParser):
 
 		if packet.type == ELNetFromServer.ADD_NEW_ENHANCED_ACTOR:
 			actor.name = packet.data[28:]
-			frame = struct.unpack('B', packet.data[22])[0] #For some reason, data[11] is unused in the ENHANCED message
-			actor.kind_of_actor = struct.unpack('B', packet.data[27])[0]
+			frame = packet.data[22] #For some reason, data[11] is unused in the ENHANCED message
+			actor.kind_of_actor = packet.data[27]
 		else:
 			actor.name = packet.data[17:]
 		
 		#The end of name is a \0, and there _might_ be two OR three more bytes
 		# containing actor-scale info.
-		name_end = actor.name.find('\0')
+		name_end = bytes_find(actor.name, 0)
 		if name_end < len(actor.name)-2:
 			#There are two OR three more bytes after the name,
 			# the actor scaling bytes and possibly the attachment type
-			unpacked = struct.unpack('<H', actor.name[name_end+1:name_end+3])
+			unpacked = struct.unpack('<H', str(actor.name[name_end+1:name_end+3]))
 			actor.scale = unpacked[0]
 			#actor.scale = float(scale)/ELConstants.ACTOR_SCALE_BASE
 			if len(actor.name) > name_end+3:
@@ -125,14 +126,16 @@ class ELAddActorMessageParser(MessageParser):
 				#Animal, yellow
 				actor.name_colour = (1.0, 1.0, 0.0)
 
-		space = actor.name.rfind(' ')
+		space = bytes_rfind(actor.name, ord(' '))
 		if space != -1 and space > 0 and space+1 < len(actor.name) and is_colour(actor.name[space+1]):
+			actor.name = strip_chars(actor.name)
 			if log.isEnabledFor(logging.DEBUG): log.debug("Actor has a guild. Parsing from '%s'" % actor.name)
 			# split the name into playername and guild
 			tokens = actor.name.rsplit(' ', 1)
 			actor.name = tokens[0]
-			actor.guild = strip_chars(tokens[1])
-		actor.name = strip_chars(actor.name)
+			actor.guild = tokens[1]
+		else:
+			actor.name = strip_chars(actor.name)
 		
 		#Deal with the current frame of the actor
 		if frame in (ELConstants.FRAME_DIE1, ELConstants.FRAME_DIE2):
@@ -164,7 +167,7 @@ class ELRemoveActorMessageParser(MessageParser):
 	def _get_ids(data):
 		offset = 0
 		while offset < len(data):
-			yield struct.unpack_from('<H', data, offset)[0]
+			yield struct.unpack_from('<H', str(data), offset)[0]
 			offset += 2
 	_get_ids = staticmethod(_get_ids)
 
@@ -198,7 +201,7 @@ class ELAddActorCommandParser(MessageParser):
 	def _get_commands(data):
 		offset = 0
 		while offset < len(data):
-			yield struct.unpack_from('<HB', data, offset)
+			yield struct.unpack_from('<HB', str(data), offset)
 			offset += 3
 	_get_commands = staticmethod(_get_commands)
 
@@ -222,7 +225,7 @@ class ELAddActorCommandParser(MessageParser):
 class ELYouAreParser(MessageParser):
 	def parse(self, packet):
 		if log.isEnabledFor(logging.DEBUG): log.debug("YouAre packet: '%s'" % packet.data)
-		id = struct.unpack('<H', packet.data)[0]
+		id = struct.unpack('<H', str(packet.data))[0]
 		self.connection.session.own_actor_id = id
 		if id in self.connection.session.actors:
 			self.connection.session.own_actor = self.connection.session.actors[id]
@@ -237,7 +240,7 @@ class ELGetActiveChannelsMessageParser(MessageParser):
 	def parse(self, packet):
 		del self.connection.session.channels[:]
 		#Message structure: Active channel (1, 2 or 3), channel 1, channel 2, channel 3
-		chans = struct.unpack('<BIII', packet.data)
+		chans = struct.unpack('<BIII', str(packet.data))
 		i = 0
 		active = chans[0]
 		for c in chans[1:]:
@@ -310,7 +313,7 @@ class ELNewMinuteParser(MessageParser):
 		if len(packet.data) != 2:
 			#TODO: Invalid message
 			return []
-		self.connection.session.game_time = struct.unpack('<H', packet.data)[0]
+		self.connection.session.game_time = struct.unpack('<H', str(packet.data))[0]
 		self.connection.session.game_time %= 360 #Clamp to six-hour time
 		event = ELEvent(ELEventType(ELNetFromServer.NEW_MINUTE))
 		event.data = {}

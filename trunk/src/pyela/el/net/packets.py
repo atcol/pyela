@@ -23,8 +23,8 @@ class Packet(object):
 class ELPacket(Packet):
 	"""Represents an Eternal Lands network packet"""
 		
-	def __init__(self, type, data):
-		self.type = type
+	def __init__(self, t, data):
+		self.type = t
 		self.data = data
 	
 	def pack(self):

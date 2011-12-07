@@ -115,7 +115,7 @@ class ChatGUI(Gtk.Window):
 				threshold = 180
 				if brightness > threshold:
 					diff = (brightness-threshold)/255
-					rgb = map(lambda x: max(0, x-diff), rgb)
+					rgb = [max(0, x-diff) for x in rgb]
 			hexcode = "#%02x%02x%02x" % (rgb[0]*255,rgb[1]*255,rgb[2]*255)
 			self.gtk_el_colour_table[code] = self.chat_area.chat_buff.create_tag("el_colour_%i"%code, foreground=hexcode)
 
