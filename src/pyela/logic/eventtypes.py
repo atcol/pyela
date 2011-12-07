@@ -17,4 +17,4 @@
 """Descriptors for particular events"""
 
 class EventType(object):
-	
+	pass

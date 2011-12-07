@@ -17,7 +17,6 @@
 """Sessions represent the information we recored while logged-in to an EL server
 """
 
-import ConfigParser
 from pyela.el.net.elconstants import ELNetToServer, ELConstants
 from pyela.el.net.packets import ELPacket
 import struct

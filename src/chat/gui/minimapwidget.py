@@ -124,6 +124,7 @@ class Minimap(Gtk.DrawingArea):
 				context.arc(x, y, float(dot.size)/2*map_to_screen_ratio, 0, 2*math.pi)
 				context.set_source_rgb(dot.colour[0], dot.colour[1], dot.colour[2])
 				context.fill()
+		return False
 	
 	def set_own_pos(self, x, y):
 		self.own_x = x

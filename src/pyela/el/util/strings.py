@@ -73,9 +73,9 @@ def strip_chars(s):
 		if not is_colour(char):
 			if is_special_char(char):
 				stripped_str += special_char_to_char(char)
-			elif ord(char) < 127 and ord(char) > 0:
+			elif char < 127 and char > 0:
 				# Skip non-ascii characters
-				stripped_str += unicode(char)
+				stripped_str += unicode(chr(char))
 	return stripped_str
 
 def str_to_el_str(s):
@@ -141,3 +141,17 @@ def el_colour_to_rgb(colour):
 	if colour > 127:
 		colour -= 127
 	return el_colour_char_table[colour]
+
+def bytes_find(arr, needle):
+	"""Search for needle in bytearray"""
+	for i in range(0,len(arr)):
+		if arr[i] == needle:
+			return i
+	return -1
+
+def bytes_rfind(arr, needle):
+	"""Search for needle in bytearray"""
+	for i in reversed(range(0,len(arr))):
+		if arr[i] == needle:
+			return i
+	return -1
