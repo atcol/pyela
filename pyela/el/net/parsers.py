@@ -108,7 +108,7 @@ class ELAddActorMessageParser(MessageParser):
 		#Find the actor's name's colour char
 		i = 0
 		while i < len(actor.name) and is_colour(actor.name[i]):
-			actor.name_colour = el_colour_to_rgb(ord(actor.name[i]))
+			actor.name_colour = el_colour_to_rgb(actor.name[i])
 			i += 1
 		if actor.name_colour[0] == -1:
 			#We didn't find any colour codes, use kind_of_actor
