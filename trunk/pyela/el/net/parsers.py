@@ -255,7 +255,7 @@ class ELGetActiveChannelsMessageParser(MessageParser):
 class ELBuddyEventMessageParser(MessageParser):
 	"""Parse the BUDDY_EVENT message"""
 	def parse(self, packet):
-		change = ord(packet.data[0])# 1 is online, 0 offline
+		change = packet.data[0]# 1 is online, 0 offline
 		event = ELEvent(ELEventType(ELNetFromServer.BUDDY_EVENT))
 		event.data = {}
 		if change == 1:
