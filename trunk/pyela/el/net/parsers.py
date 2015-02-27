@@ -240,7 +240,7 @@ class ELGetActiveChannelsMessageParser(MessageParser):
 	def parse(self, packet):
 		del self.connection.session.channels[:]
 		#Message structure: Active channel (1, 2 or 3), channel 1, channel 2, channel 3
-		chans = struct.unpack('<BIII', str(packet.data))
+		chans = struct.unpack('<BIIII', str(packet.data))
 		i = 0
 		active = chans[0]
 		for c in chans[1:]:

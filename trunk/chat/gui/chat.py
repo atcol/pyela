@@ -190,7 +190,7 @@ class ChatGUI(Gtk.Window):
 		# at the bottom line (to allow scrolling up to read backlog)
 		adj = self.chat_area.get_vadjustment()
 		if adj.get_value() + adj.get_page_size() == adj.get_upper():
-			self.chat_area.chat_view.scroll_to_mark(self.chat_area.chat_buff.get_data('end_mark'), 0.0, False, 0.5, 0.5)
+			self.chat_area.chat_view.scroll_to_mark(self.chat_area.chat_buff.end_mark, 0.0, False, 0.5, 0.5)
 
 	def __input_keypress(self, widget, event):
 		if event.keyval == Gdk.keyval_from_name("Return"):
@@ -379,7 +379,7 @@ class ChatArea(Gtk.ScrolledWindow):
 		self.chat_buff = Gtk.TextBuffer()
 		# create a mark at the end of the buffer that we can scroll to
 		end_mark = self.chat_buff.create_mark('end', self.chat_buff.get_end_iter(), False)
-		self.chat_buff.set_data('end_mark', end_mark)
+		self.chat_buff.end_mark = end_mark
 		self.chat_view = Gtk.TextView()
 		self.chat_view.set_buffer(self.chat_buff)
 		self.chat_view.set_editable(False)
