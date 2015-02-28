@@ -33,7 +33,7 @@ class ELSimpleEventManager(object):
 		def raise_event(self, event):
 			"""Notify all handlers for the given event"""
 			log.debug("Got event: %s" % event)
-			if self._handlers.has_key(event.type):
+			if event.type in self._handlers:
 				for handler in self._handlers[event.type]:
 					handler.notify(event)
 			else:
@@ -48,7 +48,7 @@ class ELSimpleEventManager(object):
 				% event_handler)
 
 			for t in event_handler.get_event_types():
-				if self._handlers.has_key(t):
+				if t in self._handlers:
 					self._handlers[t].append(event_handler)
 				else: 
 					self._handlers[t] = [event_handler]
