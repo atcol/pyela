@@ -244,7 +244,7 @@ class ChatGUI(Gtk.Window):
 				t = ELNetToServer.SEND_PM
 				msg = self.input_hbox.msg_txt.get_text()[1:]
 			
-			el_msg = str_to_el_str(unicode(msg))
+			el_msg = str_to_el_str(str(msg))
 			self.elc.send(ELPacket(t, el_msg))
 			self.input_hbox.msg_txt.set_text("")
 			#input text buffer handling

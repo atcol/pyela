@@ -29,28 +29,30 @@ def is_colour(ch):
 def is_special_char(ch):
 	"""Return true if ch is a foreign character"""
 	#The following greater-than is not a typo
-	if type(ch) == str:
-		return ord(ch) > ELConstants.SPECIALCHAR_LBOUND and ord(ch) <= ELConstants.SPECIALCHAR_UBOUND
+	if type(ch) in (bytearray,bytes):
+		return ch[0] > ELConstants.SPECIALCHAR_LBOUND and ch[0] <= ELConstants.SPECIALCHAR_UBOUND
 	else:
 		return ch > ELConstants.SPECIALCHAR_LBOUND and ch <= ELConstants.SPECIALCHAR_UBOUND
 
-special_char_table = {ELConstants.EACUTE:u'é', ELConstants.ACIRC:u'â', ELConstants.AGRAVE:u'à',
-		ELConstants.CCEDIL:u'ç', ELConstants.ECIRC:u'ê', ELConstants.EUML:u'ë', ELConstants.EGRAVE:u'è',
-		ELConstants.IUML:u'ï', ELConstants.OCIRC:u'ô', ELConstants.uGRAVE:u'ù', ELConstants.aUMLAUT:u'ä',
-		ELConstants.oUMLAUT:u'ö', ELConstants.uUMLAUT:u'ü', ELConstants.AUMLAUT:u'Ä',
-		ELConstants.OUMLAUT:u'Ö', ELConstants.UUMLAUT:u'Ü', ELConstants.DOUBLES:u'ß',
-		ELConstants.aELIG:u'æ', ELConstants.oSLASH:u'ø', ELConstants.aRING:u'å',
-		ELConstants.AELIG:u'Æ', ELConstants.OSLASH:u'Ø', ELConstants.ARING:u'Å',
-		ELConstants.EnyE:u'ñ', ELConstants.ENYE:u'Ñ', ELConstants.aACCENT:u'á', ELConstants.AACCENT:u'Á',
-		ELConstants.EACCENT:u'É', ELConstants.iACCENT:u'í', ELConstants.IACCENT:u'Í',
-		ELConstants.oACCENT:u'ó', ELConstants.OACCENT:u'Ó', ELConstants.uACCENT:u'ú',
-		ELConstants.UACCENT:u'Ú'}
+special_char_table = {ELConstants.EACUTE:'é', ELConstants.ACIRC:'â', ELConstants.AGRAVE:'à',
+		ELConstants.CCEDIL:'ç', ELConstants.ECIRC:'ê', ELConstants.EUML:'ë', ELConstants.EGRAVE:'è',
+		ELConstants.IUML:'ï', ELConstants.OCIRC:'ô', ELConstants.uGRAVE:'ù', ELConstants.aUMLAUT:'ä',
+		ELConstants.oUMLAUT:'ö', ELConstants.uUMLAUT:'ü', ELConstants.AUMLAUT:'Ä',
+		ELConstants.OUMLAUT:'Ö', ELConstants.UUMLAUT:'Ü', ELConstants.DOUBLES:'ß',
+		ELConstants.aELIG:'æ', ELConstants.oSLASH:'ø', ELConstants.aRING:'å',
+		ELConstants.AELIG:'Æ', ELConstants.OSLASH:'Ø', ELConstants.ARING:'Å',
+		ELConstants.EnyE:'ñ', ELConstants.ENYE:'Ñ', ELConstants.aACCENT:'á', ELConstants.AACCENT:'Á',
+		ELConstants.EACCENT:'É', ELConstants.iACCENT:'í', ELConstants.IACCENT:'Í',
+		ELConstants.oACCENT:'ó', ELConstants.OACCENT:'Ó', ELConstants.uACCENT:'ú',
+		ELConstants.UACCENT:'Ú'}
 
 def special_char_to_char(sch):
 	"""Convert an EL special character (integer value > 127) to a regular string-compatible character"""
-	if type(sch) != str:
-		sch = chr(sch)
-	return unicode(sch, 'iso8859')
+	if type(sch) == str:
+		sch = bytes([ord(sch)])
+	elif type(sch) == int:
+		sch = bytes([sch])
+	return str(sch, 'iso8859')
 
 def char_to_special_char(ch):
 	"""Convert a non-ascii character (integer value > 127) to an EL-compatible special character"""
@@ -59,6 +61,7 @@ def char_to_special_char(ch):
 	#	return reverse_table[ch]
 	#else:
 	#	return None
+	
 	ch = ch.encode('iso8859', 'replace')
 	if is_special_char(ch):
 		return ch
@@ -67,7 +70,7 @@ def char_to_special_char(ch):
 
 def strip_chars(s):
 	"""Remove protocol and control characters from the given string"""
-	stripped_str = u""
+	stripped_str = ""
 
 	for char in s:
 		if not is_colour(char):
@@ -75,7 +78,7 @@ def strip_chars(s):
 				stripped_str += special_char_to_char(char)
 			elif char < 127 and char > 0:
 				# Skip non-ascii characters
-				stripped_str += unicode(chr(char))
+				stripped_str += str(chr(char))
 	return stripped_str
 
 def str_to_el_str(s):
@@ -85,7 +88,7 @@ def str_to_el_str(s):
 		if ord(char) > 127:
 			elch = char_to_special_char(char)
 			if elch != None:
-				out_str.append(elch)
+				out_str.append(ord(elch))
 		else:
 			out_str += char.encode('ascii', 'replace')
 	return out_str

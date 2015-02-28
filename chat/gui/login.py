@@ -108,7 +108,8 @@ class LoginGUI(Gtk.Dialog):
 		self.port_spin.set_activates_default(True)
 		if 'port' in defaults:
 			self.port_spin.set_value(int(defaults['port']))
-		
+		else:
+			self.port_spin.set_value(2001)
 		self.table.attach(self.user_txt, 1, 2, 0, 1)
 		self.table.attach(self.passwd_txt, 1, 2, 1, 2)
 		self.table.attach(self.host_txt, 1, 2, 2, 3)

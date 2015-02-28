@@ -20,7 +20,6 @@ import struct
 import sys
 import datetime
 import logging
-import ConfigParser
 
 from pyela.el.net.connections import ELConnection
 from pyela.el.net.elconstants import ELConstants
@@ -149,7 +148,7 @@ class MultiConnectionManager(ConnectionManager):
 			if log.isEnabledFor(logging.DEBUG): log.debug("Sleeping 5 seconds before reconnect")
 			time.sleep(5) #TODO: This will block everything for 5 seconds. Not good.
 			return con.reconnect()
-		except ConnectionException, ce:
+		except ConnectionException as ce:
 			log.error("Exception when reconnecting: %s" % ce)
 
 	def get_connection_by_id(self, id):

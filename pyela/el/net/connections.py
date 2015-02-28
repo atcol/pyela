@@ -175,7 +175,7 @@ class ELConnection(BaseConnection):
 				self.disconnect()
 				self.error = os.strerror(ret)
 				return False
-		except (socket.error, socket.herror, socket.gaierror), why:
+		except (socket.error, socket.herror, socket.gaierror) as why:
 			self.error = "%s (%i)" % (why[1], why[0])
 			self.status = DISCONNECTED
 			self.disconnect()
@@ -187,7 +187,7 @@ class ELConnection(BaseConnection):
 			#log.info('Connecting to %s:%s' % (self.host, self.port))
 			try:
 				self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-			except (socket.error, socket.herror, socket.gaierror), why:
+			except (socket.error, socket.herror, socket.gaierror) as why:
 				self.error = 'Failed to create socket: %i: %s' % tuple(why)
 				log.error('Failed to create socket: %i: %s' % tuple(why))
 				self.socket = None
@@ -234,7 +234,7 @@ class ELConnection(BaseConnection):
 		def parse_message():
 			"""Return the packet type (see ELConstants) and its data as a tuple"""
 			while len(self._inp) >= 3:
-				header = struct.unpack('<BH', str(self._inp[:3]))
+				header = struct.unpack('<BH', self._inp[:3])
 				msg_len = header[1]-1
 				if len(self._inp) >= msg_len+3:
 					yield ELPacket(header[0], self._inp[3:3+msg_len])

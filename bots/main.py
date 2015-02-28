@@ -14,7 +14,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
-import ConfigParser
+import configparser
 import os
 import logging as log
 import signal
@@ -50,12 +50,12 @@ def main():
 	signal.signal(signal.SIGQUIT, sig_cleanup)
 	signal.signal(signal.SIGPIPE, signal.SIG_IGN)
 
-	sys_cfg = ConfigParser.ConfigParser()# system-wide settings
+	sys_cfg = configparser.ConfigParser()# system-wide settings
 	sys_cfg.read('system.ini')
 
 	for file in os.listdir('./bots'):
 		if file.endswith(".ini"):
-			cfg = ConfigParser.ConfigParser()
+			cfg = configparser.ConfigParser()
 			cfg.read("./bots/%s" % file)
 			con = get_elconnection_by_config(cfg)
 			con.packet_handler = ExtendedELPacketHandler(con)

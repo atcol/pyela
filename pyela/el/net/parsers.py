@@ -68,7 +68,7 @@ class ELAddActorMessageParser(MessageParser):
 		actor.id, actor.x_pos, actor.y_pos, actor.z_pos, \
 		actor.z_rot, actor.type, frame, actor.max_health, \
 		actor.cur_health, actor.kind_of_actor \
-		= struct.unpack('<HHHHHBBHHB', str(packet.data[:17]))
+		= struct.unpack('<HHHHHBBHHB', packet.data[:17])
 		events = []
 
 		#Remove the buffs from the x/y coordinates
@@ -88,7 +88,7 @@ class ELAddActorMessageParser(MessageParser):
 		if name_end < len(actor.name)-2:
 			#There are two OR three more bytes after the name,
 			# the actor scaling bytes and possibly the attachment type
-			unpacked = struct.unpack('<H', str(actor.name[name_end+1:name_end+3]))
+			unpacked = struct.unpack('<H', actor.name[name_end+1:name_end+3])
 			actor.scale = unpacked[0]
 			#actor.scale = float(scale)/ELConstants.ACTOR_SCALE_BASE
 			if len(actor.name) > name_end+3:
@@ -225,7 +225,7 @@ class ELAddActorCommandParser(MessageParser):
 class ELYouAreParser(MessageParser):
 	def parse(self, packet):
 		if log.isEnabledFor(logging.DEBUG): log.debug("YouAre packet: '%s'" % packet.data)
-		id = struct.unpack('<H', str(packet.data))[0]
+		id = struct.unpack('<H', packet.data)[0]
 		self.connection.session.own_actor_id = id
 		if id in self.connection.session.actors:
 			self.connection.session.own_actor = self.connection.session.actors[id]
@@ -240,7 +240,7 @@ class ELGetActiveChannelsMessageParser(MessageParser):
 	def parse(self, packet):
 		del self.connection.session.channels[:]
 		#Message structure: Active channel (1, 2 or 3), channel 1, channel 2, channel 3
-		chans = struct.unpack('<BIIII', str(packet.data))
+		chans = struct.unpack('<BIIII', packet.data)
 		i = 0
 		active = chans[0]
 		for c in chans[1:]:
@@ -313,7 +313,7 @@ class ELNewMinuteParser(MessageParser):
 		if len(packet.data) != 2:
 			#TODO: Invalid message
 			return []
-		self.connection.session.game_time = struct.unpack('<H', str(packet.data))[0]
+		self.connection.session.game_time = struct.unpack('<H', packet.data)[0]
 		self.connection.session.game_time %= 360 #Clamp to six-hour time
 		event = ELEvent(ELEventType(ELNetFromServer.NEW_MINUTE))
 		event.data = {}
