@@ -8,6 +8,6 @@ Homepage: http://pyela.googlecode.com/
 
 Package: pyela-chat
 Architecture: all
-Depends: ${misc:Depends}, ${python3:Depends}, python3-gi
+Depends: ${misc:Depends}, ${python3:Depends}, python3-gi, python3-pyela
 Description: Pyela Eternal-Lands chat client
  A chat-only client for the MMORPG Eternal-Lands (http://eternal-lands.com)
