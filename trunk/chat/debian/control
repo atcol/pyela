@@ -1,0 +1,13 @@
+Source: pyela-chat
+Maintainer: Vegar Storvann <vegar@storvann.net>
+Section: python
+Priority: optional
+Build-Depends: python3-setuptools, python3-all, debhelper (>= 9)
+Standards-Version: 3.9.1
+Homepage: http://pyela.googlecode.com/
+
+Package: pyela-chat
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends}, python3-gi
+Description: Pyela Eternal-Lands chat client
+ A chat-only client for the MMORPG Eternal-Lands (http://eternal-lands.com)

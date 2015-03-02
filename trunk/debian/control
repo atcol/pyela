@@ -1,0 +1,19 @@
+Source: pyela
+Maintainer: Vegar Storvann <vegar@storvann.net>
+Section: python
+Priority: optional
+Build-Depends: python3-setuptools, python3-all, debhelper (>= 9)
+Standards-Version: 3.9.1
+
+Package: python3-pyela
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends}
+Description: Pyela Eternal-Lands framework
+ Tools and application programming interfaces (APIs) for the free and open-
+ source MMORPG, Eternal Lands.
+ .
+ Pyela is an implementation of the Eternal Lands network protocol in Python.
+ The aim of this project is to provide an object oriented API and framework
+ for communicating over the Eternal Lands protocol and to allow rapid and
+ simple development of tools and other features that communicate with an EL 
+ server (such as bots). 

@@ -34,6 +34,9 @@ from gui.locationlbl import LocationLbl
 
 from logic.eventhandler import ChatGUIEventHandler
 
+def launch_gui():
+    c = ChatGUI()
+
 class ChatGUI(Gtk.Window):
 	def __init__(self):
 		self.msg_buff = [] # list of messages, for CTRL+UP/UP and DOWN

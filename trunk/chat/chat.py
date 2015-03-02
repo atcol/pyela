@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Copyright 2008 Alex Collins
 #
 # This file is part of Pyela.
@@ -14,14 +15,10 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
-#!/usr/bin/env python
 import sys,os
 sys.path.append(os.getcwd()+'/..')
+from gui.chat import launch_gui
 
-from gui.chat import ChatGUI
-
-def main():
-	c = ChatGUI()
 
 if __name__ == '__main__':
-	main()
+	launch_gui()
