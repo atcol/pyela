@@ -4,7 +4,7 @@ setup(
 	name='pyelachat',
 	version='0.4',
 	description='Pyela Eternal-Lands chat client',
-	url='http://pyela.googlecode.com/',
+	url='http://github.com/atc-/pyela',
         author = 'Alex Collins, Vegar Storvann',
         author_email = 'vegar@storvann.net',
 	packages=find_packages(),

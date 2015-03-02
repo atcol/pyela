@@ -4,6 +4,7 @@ Section: python
 Priority: optional
 Build-Depends: python3-setuptools, python3-all, debhelper (>= 9)
 Standards-Version: 3.9.1
+Homepage: http://github.com/atc-/pyela
 
 Package: python3-pyela
 Architecture: all

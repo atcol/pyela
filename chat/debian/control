@@ -4,7 +4,7 @@ Section: python
 Priority: optional
 Build-Depends: python3-setuptools, python3-all, debhelper (>= 9)
 Standards-Version: 3.9.1
-Homepage: http://pyela.googlecode.com/
+Homepage: http://github.com/atc-/pyela
 
 Package: pyela-chat
 Architecture: all
