@@ -27,7 +27,7 @@ def is_colour(ch):
 		return ch >= 127+ELConstants.C_LBOUND and ch <= 127+ELConstants.C_UBOUND
 
 def is_special_char(ch):
-	"""Return true if ch is a foreign character"""
+	"""Returns true if ch is a foreign character"""
 	#The following greater-than is not a typo
 	if type(ch) in (bytearray,bytes):
 		return ch[0] > ELConstants.SPECIALCHAR_LBOUND and ch[0] <= ELConstants.SPECIALCHAR_UBOUND
@@ -63,10 +63,10 @@ def char_to_special_char(ch):
 	#	return None
 	
 	ch = ch.encode('iso8859', 'replace')
-	if is_special_char(ch):
-		return ch
-	else:
-		return None
+	#if is_special_char(ch):
+	return ch
+	#else:
+	#	return None
 
 def strip_chars(s):
 	"""Remove protocol and control characters from the given string"""

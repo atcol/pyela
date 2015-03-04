@@ -23,6 +23,7 @@ from pyela.logic.eventhandlers import BaseEventHandler
 from pyela.el.logic.eventmanagers import ELSimpleEventManager
 from pyela.el.util.strings import is_colour
 from pyela.logic.event import NetEventType, NET_CONNECTED, NET_DISCONNECTED
+from gui.colours import parse_el_colours
 
 class ChatGUIEventHandler(BaseEventHandler):
 	def __init__(self, gui):
@@ -47,25 +48,19 @@ class ChatGUIEventHandler(BaseEventHandler):
 
 		elif isinstance(event.type, ELEventType):
 			if event.type.id == ELNetFromServer.RAW_TEXT:
-				#TODO: Proper colour handling, see http://python.zirael.org/e-gtk-textview2.html for examples
 				self.gui.append_chat("\n")
-				text = event.data['raw']
-				if is_colour(text[0]):
-					if type(text[0]) == str:
-						colour_code = ord(text[0])-127
-					else:
-						colour_code = text[0]-127
-					tag = self.gui.gtk_el_colour_table[colour_code]
-				else:
-					tag = None
-				#Get rid of colour codes now that the colour information has been extracted
-				text = event.data['text']
+				raw_text = event.data['raw']
+				coloured_text = parse_el_colours(raw_text, self.gui.gtk_el_colour_table)
 				if event.data['channel'] in (ELConstants.CHAT_CHANNEL1, ELConstants.CHAT_CHANNEL2, ELConstants.CHAT_CHANNEL3):
-					channel = int(event.data['channel'])
-					self.gui.append_chat([text.replace(']', " @ %s]" % self.gui.elc.session.channels[int(channel - ELConstants.CHAT_CHANNEL1)].number)], tag)
-				else:
-					self.gui.append_chat([event.data['text']], tag)
+					tag,text = coloured_text.pop(0)
+					channel_pos = int(event.data['channel'])
+					channel_num = self.gui.elc.session.channels[int(channel_pos - ELConstants.CHAT_CHANNEL1)].number
+					channel_str = " @ {}]".format(channel_num)
+					self.gui.append_chat([text.replace(']', channel_str, 1)], tag)
+				for tag,text in coloured_text:
+					self.gui.append_chat([text], tag)
 				#Check for PM
+				text = event.data['text']
 				if len(text) > 12 and text[:9] == "[PM from ":
 					name_end = text[9:].find(':')
 					if name_end != -1:

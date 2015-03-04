@@ -95,7 +95,7 @@ class ChatGUI(Gtk.Window):
 		self.add(self.vbox)
 		self.show_all()
 		self.set_title("%s@%s:%s - Pyela Chat" % (self.elc.session.name, self.elc.host, self.elc.port))
-		self.append_chat(['Welcome to Pyela-Chat, part of the Pyela toolset. Visit pyela.googlecode.com for more information'])
+		self.append_chat(['Welcome to Pyela-Chat, part of the Pyela toolset. Visit http://github.com/atc-/pyela for more information'])
 		self.input_hbox.msg_txt.grab_focus()
 		
 		self.connect('key_press_event', self.__main_keypress)
@@ -112,15 +112,20 @@ class ChatGUI(Gtk.Window):
 				#White is invisible on our white background, so fix that
 				rgb = (0, 0, 0)
 			else:
-				#Calculate the brightness of the colour using the HSP algorithm
-				# (http://alienryderflex.com/hsp.html)
-				brightness = math.sqrt(0.241*(rgb[0]*255)**2 + 0.961*(rgb[1]*255)**2 + 0.068*(rgb[2]*255)**2)
-				threshold = 180
+				#Calculate the brightness of the colour using the HSP
+				#algorithm (http://alienryderflex.com/hsp.html)
+				brightness = math.sqrt(0.299*(rgb[0]*255)**2 + 0.587*(rgb[1]*255)**2 + 0.114*(rgb[2]*255)**2)
+				threshold = 100#180
 				if brightness > threshold:
+					#Invert bright colours to make them visible
 					diff = (brightness-threshold)/255
 					rgb = [max(0, x-diff) for x in rgb]
 			hexcode = "#%02x%02x%02x" % (rgb[0]*255,rgb[1]*255,rgb[2]*255)
-			self.gtk_el_colour_table[code] = self.chat_area.chat_buff.create_tag("el_colour_%i"%code, foreground=hexcode)
+			self.gtk_el_colour_table[code] = \
+				self.chat_area.chat_buff.create_tag(
+					"el_colour_{}".format(code),
+					 foreground=hexcode
+				 )
 
 	def do_login(self):
 		# Pass current values to the new login dialog, if there are any

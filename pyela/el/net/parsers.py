@@ -167,7 +167,7 @@ class ELRemoveActorMessageParser(MessageParser):
 	def _get_ids(data):
 		offset = 0
 		while offset < len(data):
-			yield struct.unpack_from('<H', str(data), offset)[0]
+			yield struct.unpack_from('<H', data, offset)[0]
 			offset += 2
 	_get_ids = staticmethod(_get_ids)
 
@@ -201,7 +201,7 @@ class ELAddActorCommandParser(MessageParser):
 	def _get_commands(data):
 		offset = 0
 		while offset < len(data):
-			yield struct.unpack_from('<HB', str(data), offset)
+			yield struct.unpack_from('<HB', data, offset)
 			offset += 3
 	_get_commands = staticmethod(_get_commands)
 
