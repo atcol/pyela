@@ -3,7 +3,7 @@ _Tools and application programming interfaces (APIs) for the open-source & free 
 
 Pyela is an implementation of the Eternal Lands network protocol in Python. The aim of this project is to provide an object oriented API and framework for communicating over the Eternal Lands protocol and to allow rapid and simple development of tools and other features that would communicate with an EL server (such as bots).
 
-Apart from the APIs, there are also tools in the works. The first of which is a GTK Python chat application. It's currently in the early development stage but is already functional and usable. You can download that [http://pyela.googlecode.com/files/pyela-gui-0.4.tar  here].
+Apart from the APIs, there are also tools in the works. The first of which is a GTK Python chat application. It's currently in the early development stage but is already functional and usable.
 
 ## Requirements
 You will need the following software packages/libraries installed on your computer before using any of the Pyela framework:
