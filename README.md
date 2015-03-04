@@ -8,21 +8,15 @@ Apart from the APIs, there are also tools in the works. The first of which is a 
 ## Requirements
 You will need the following software packages/libraries installed on your computer before using any of the Pyela framework:
 
-  * Python 2.5 or later
-
-  * PyGTK/GTK 2.0
+* Python 3.2 or later
+* GTK+ 3.0
 
 GTK is only needed for the GUI based applications.
 
-## Featured Downloads
-[http://pyela.googlecode.com/files/pyeal-net-0.4.1.tar Pyela-Net, 0.4.1 Alpha] - the first release of the networking API for connecting to an Eternal Lands server.
-
-[http://pyela.googlecode.com/files/pyela-gui-0.4.tar Pyela-GUI, 0.4 Alpha] - a Python Eternal Lands chat GUI
-
 ## Documentation
-Learn how to use pyela-net, the first pyela module, to connect to an Eternal Lands server in Python: [http://code.google.com/p/pyela/wiki/UsingPyelaNet UsingPyelaNet].
+Learn how to use pyela-net, the first pyela module, to connect to an Eternal Lands server in Python: [UsingPyelaNet](https://github.com/atc-/pyela/wiki/Using-Pyela-Net).
 
-Understand the possibilities of Pyela as a bot framework with [http://code.google.com/p/pyela/wiki/PyelaBotFramework PyelaBotFramework].
+Understand the possibilities of Pyela as a bot framework with [PyelaBotFramework](https://github.com/atc-/pyela/wiki/Pyela-as-a-bot-framework).
 
 ## About
-Pyela was designed and written by [http://alexcollins.org/ Alex Collins] as a pet-project to practice python and learn network programming.
+Pyela was designed and written by [Alex Collins](http://alexcollins.org/) as a pet-project to practice python and learn network programming.
