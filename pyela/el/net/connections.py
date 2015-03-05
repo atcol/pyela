@@ -250,7 +250,6 @@ class ELConnection(BaseConnection):
 			self.status = DISCONNECTED
 			self.disconnect()
 			raise ConnectionException("Other end terminated the connection")
-		# When python 3 is required: self._inp += bytearray(ret)
 		self._inp += ret
 		for packet in parse_message():
 			packets.append(packet)

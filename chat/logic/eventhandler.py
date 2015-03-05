@@ -48,23 +48,7 @@ class ChatGUIEventHandler(BaseEventHandler):
 
 		elif isinstance(event.type, ELEventType):
 			if event.type.id == ELNetFromServer.RAW_TEXT:
-				self.gui.append_chat("\n")
-				raw_text = event.data['raw']
-				coloured_text = parse_el_colours(raw_text, self.gui.gtk_el_colour_table)
-				if event.data['channel'] in (ELConstants.CHAT_CHANNEL1, ELConstants.CHAT_CHANNEL2, ELConstants.CHAT_CHANNEL3):
-					tag,text = coloured_text.pop(0)
-					channel_pos = int(event.data['channel'])
-					channel_num = self.gui.elc.session.channels[int(channel_pos - ELConstants.CHAT_CHANNEL1)].number
-					channel_str = " @ {}]".format(channel_num)
-					self.gui.append_chat([text.replace(']', channel_str, 1)], tag)
-				for tag,text in coloured_text:
-					self.gui.append_chat([text], tag)
-				#Check for PM
-				text = event.data['text']
-				if len(text) > 12 and text[:9] == "[PM from ":
-					name_end = text[9:].find(':')
-					if name_end != -1:
-						self.gui.last_pm_from = text[9:9+name_end]
+				self.handle_chat(event)
 			elif event.type.id == ELNetFromServer.GET_ACTIVE_CHANNELS:
 				#Just rebuild the GUI channel list
 				self.gui.tool_vbox.rebuild_channel_list(event.data['channels'])
@@ -91,6 +75,34 @@ class ChatGUIEventHandler(BaseEventHandler):
 
 	def get_event_types(self):
 		return self.event_types
+	
+	def handle_chat(self, event):
+		self.gui.append_chat("\n")
+		raw_text = event.data['raw']
+		coloured_text = parse_el_colours(raw_text, self.gui.gtk_el_colour_table)
+		if event.data['channel'] in (ELConstants.CHAT_CHANNEL1, ELConstants.CHAT_CHANNEL2, ELConstants.CHAT_CHANNEL3):
+			tag,text = coloured_text.pop(0)
+			channel_pos = int(event.data['channel'])
+			channel_num = self.gui.elc.session.channels[int(channel_pos - ELConstants.CHAT_CHANNEL1)].number
+			channel_str = " @ {}]".format(channel_num)
+			self.gui.append_chat([text.replace(']', channel_str, 1)], tag)
+		for tag,text in coloured_text:
+			self.gui.append_chat([text], tag)
+			
+		text = event.data['text']
+		#CHAT_MODPM and CHAT_POPUP also show up in a dialog
+		if event.data['channel'] in (ELConstants.CHAT_MODPM, ELConstants.CHAT_POPUP):
+			if not (event.data['channel'] == ELConstants.CHAT_MODPM and text.startswith("[Mod PM to")):
+				self.gui.show_popup_message(text)
+		#Check for PM and update last_pm_from variable
+		if len(text) > 12 and text.startswith("[PM from "):
+			name_end = text[9:].find(':')
+			if name_end != -1:
+				self.gui.last_pm_from = text[9:9+name_end]
+		elif len(text) > 15 and text.startswith("[Mod PM from "):
+			name_end = text[13:].find(':')
+			if name_end != -1:
+				self.gui.last_pm_from = text[13:13+name_end]
 
 from gui.minimapdot import MinimapDot
 

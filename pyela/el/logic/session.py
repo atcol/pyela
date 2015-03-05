@@ -52,7 +52,7 @@ class Session(object):
 class ELSession(Session):
 	"""An EL-specific session that 
 	contains non-persistent information collected since logon, such as
-	actors, ignores, channels etc
+	actors, ignores, channels, etc.
 	"""
 
 	def __init__(self, username, password, login_msgs=[], logout_msgs=[]):

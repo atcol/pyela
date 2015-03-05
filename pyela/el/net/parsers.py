@@ -35,7 +35,6 @@ from pyela.el.logic.events import ELEventType, ELEvent
 log = logging.getLogger('pyela.el.net.parsers')
 em = ELSimpleEventManager()
 
-#TODO:Py3k: When switching to py3k, remove all str() casts in the struct.unpack calls.
 class MessageParser(object):
 	"""A message received from the Eternal Lands server"""
 

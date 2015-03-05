@@ -199,6 +199,15 @@ class ChatGUI(Gtk.Window):
 		adj = self.chat_area.get_vadjustment()
 		if adj.get_value() + adj.get_page_size() == adj.get_upper():
 			self.chat_area.chat_view.scroll_to_mark(self.chat_area.chat_buff.end_mark, 0.0, False, 0.5, 0.5)
+			
+	def show_popup_message(self, msg, title="Message"):
+		popup = Gtk.MessageDialog(type=Gtk.MessageType.OTHER,
+								flags=None,
+								text=title,
+								buttons=Gtk.ButtonsType.CLOSE)
+		popup.format_secondary_text(msg)
+		popup.connect("response", lambda _,__: popup.destroy())
+		popup.show()
 
 	def __input_keypress(self, widget, event):
 		if event.keyval == Gdk.keyval_from_name("Return"):
