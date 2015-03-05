@@ -1,8 +1,9 @@
 from setuptools import setup, find_packages
+from gui import VER_MINOR,VER_MAJOR,VER_EXTRA
 
 setup(
 	name='pyelachat',
-	version='0.4',
+	version='{}.{}{}'.format(VER_MINOR,VER_MAJOR,VER_EXTRA),
 	description='Pyela Eternal-Lands chat client',
 	url='http://github.com/atc-/pyela',
         author = 'Alex Collins, Vegar Storvann',

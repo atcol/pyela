@@ -17,3 +17,6 @@
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
 
 all = ["login", "chat", "minimapwidget", "minimapdot", "networking_error", "locationlbl"]
+VER_MAJOR = 0
+VER_MINOR = 5
+VER_EXTRA = 'rc1'
