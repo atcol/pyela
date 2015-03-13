@@ -19,4 +19,4 @@ Learn how to use pyela-net, the first pyela module, to connect to an Eternal Lan
 Understand the possibilities of Pyela as a bot framework with [PyelaBotFramework](https://github.com/atc-/pyela/wiki/Pyela-as-a-bot-framework).
 
 ## About
-Pyela was designed and written by [Alex Collins](http://alexcollins.org/) as a pet-project to practice python and learn network programming.
+Pyela was designed and written by [Alex Collins](http://alexcollins.org/) and Vegar Storvann for fun.
