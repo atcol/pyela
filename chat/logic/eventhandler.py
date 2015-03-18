@@ -15,8 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
 
-from gi.repository import Gtk as gtk
-
 from pyela.el.net.elconstants import ELConstants, ELNetFromServer
 from pyela.el.logic.events import ELEventType
 from pyela.logic.eventhandlers import BaseEventHandler
@@ -41,21 +39,21 @@ class ChatGUIEventHandler(BaseEventHandler):
 	def notify(self, event):
 		if isinstance(event.type, NetEventType):
 			if event.type.id == NET_DISCONNECTED:
-				self.gui._unregister_socket_io_watch()
+				self.gui.unregister_socket_notifier()
 			elif event.type.id == NET_CONNECTED:
-				# assign the fd of our elconnection to gtk
-				self.gui._register_socket_io_watch()
+				# assign the fd of our elconnection to qt
+				self.gui.register_socket_notifier()
 
 		elif isinstance(event.type, ELEventType):
 			if event.type.id == ELNetFromServer.RAW_TEXT:
 				self.handle_chat(event)
 			elif event.type.id == ELNetFromServer.GET_ACTIVE_CHANNELS:
 				#Just rebuild the GUI channel list
-				self.gui.tool_vbox.rebuild_channel_list(event.data['channels'])
+				self.gui.channel_list.rebuild_channel_list(event.data['channels'])
 			elif event.type.id == ELNetFromServer.BUDDY_EVENT:
-				self.gui.tool_vbox.buddy_list.clear()
+				self.gui.buddy_list.clear()
 				for buddy in self.gui.elc.session.buddies:
-					self.gui.tool_vbox.buddy_list.append([buddy])
+					self.gui.buddy_list.append(buddy)
 			elif event.type.id in (ELNetFromServer.LOG_IN_NOT_OK, ELNetFromServer.YOU_DONT_EXIST):
 				if event.type.id == ELNetFromServer.LOG_IN_NOT_OK:
 					msg = event.data['text']
@@ -71,7 +69,7 @@ class ChatGUIEventHandler(BaseEventHandler):
 				alert.destroy()
 				self.gui.do_login()
 			elif event.type.id == ELNetFromServer.NEW_MINUTE:
-				self.gui.tool_vbox.clock_lbl.set_text("Time: %d:%02d" % (int(event.data['time']/60), event.data['time']%60))
+				self.gui.clock_lbl.setText("Time: {:d}:{:02d}".format(int(event.data['time']/60), event.data['time']%60))
 
 	def get_event_types(self):
 		return self.event_types
@@ -79,7 +77,7 @@ class ChatGUIEventHandler(BaseEventHandler):
 	def handle_chat(self, event):
 		self.gui.append_chat("\n")
 		raw_text = event.data['raw']
-		coloured_text = parse_el_colours(raw_text, self.gui.gtk_el_colour_table)
+		coloured_text = parse_el_colours(raw_text, self.gui.qt_el_colour_table)
 		if event.data['channel'] in (ELConstants.CHAT_CHANNEL1, ELConstants.CHAT_CHANNEL2, ELConstants.CHAT_CHANNEL3):
 			tag,text = coloured_text.pop(0)
 			channel_pos = int(event.data['channel'])
@@ -98,11 +96,11 @@ class ChatGUIEventHandler(BaseEventHandler):
 		if len(text) > 12 and text.startswith("[PM from "):
 			name_end = text[9:].find(':')
 			if name_end != -1:
-				self.gui.last_pm_from = text[9:9+name_end]
+				self.gui.msg_txt.last_pm_from = text[9:9+name_end]
 		elif len(text) > 15 and text.startswith("[Mod PM from "):
 			name_end = text[13:].find(':')
 			if name_end != -1:
-				self.gui.last_pm_from = text[13:13+name_end]
+				self.gui.msg_txt.last_pm_from = text[13:13+name_end]
 
 from gui.minimapdot import MinimapDot
 

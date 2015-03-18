@@ -1,4 +1,4 @@
-# Copyright 2008, 2011 Pyela Project
+# Copyright 2008-2015 Pyela Project
 #
 # This file is part of Pyela.
 # 
@@ -14,12 +14,11 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
-from gi.repository import Gtk, GObject, Gdk
+
 import math
-import struct
 import sys
 
-from pyela.el.net.elconstants import ELNetToServer, ELConstants
+from pyela.el.net.elconstants import ELNetToServer
 from pyela.el.net.connections import ELConnection, DISCONNECTED
 from pyela.el.net.packets import ELPacket
 from pyela.el.net.packethandlers import ExtendedELPacketHandler
@@ -28,85 +27,142 @@ from pyela.el.logic.session import ELSession
 from pyela.el.logic.eventmanagers import ELSimpleEventManager
 from pyela.el.util.strings import el_colour_char_table, str_to_el_str
 from gui.login import LoginGUI
-from gui.minimapwidget import Minimap
+#from gui.minimapwidget import Minimap
 from gui.networking_error import NetworkingErrorAlert
 from gui.locationlbl import LocationLbl
+import html
+
+from PyQt5.QtWidgets import QMainWindow, QHBoxLayout, QVBoxLayout,\
+							QLineEdit, QPushButton,\
+							QApplication, QWidget, QFrame, QLabel,\
+							QTreeWidget, QTreeWidgetItem,\
+							QHeaderView, QRadioButton,\
+							QMessageBox, QTextBrowser
+from PyQt5.QtCore import QSocketNotifier
+from PyQt5.QtGui import QTextCursor
+from PyQt5.QtCore import Qt,QTimer
 
 from logic.eventhandler import ChatGUIEventHandler
 
 def launch_gui():
-    c = ChatGUI()
+	app = QApplication(sys.argv)
+	print(app.style().metaObject().className())
+	ChatGUI()
+	app.exec_()
 
-class ChatGUI(Gtk.Window):
+class ChatGUI(QMainWindow):
 	def __init__(self):
-		self.msg_buff = [] # list of messages, for CTRL+UP/UP and DOWN
-		self.msgb_idx = 0
-		self.last_key = None # for // name completion
-		self.last_pm_from = None
+		super().__init__()
 		self.elc = None
-		self.g_watch_sources = []
+		self.socket_notifiers = []
 		ELSimpleEventManager().add_handler(ChatGUIEventHandler(self))
+		# Create window
 		self.__setup_gui()
-	
-	def __setup_gui(self):
-		self.elc = None
-
-		Gtk.Window.__init__(self)
-		self.connect('destroy', self.destroy)
-		self.connect('delete_event', self.destroy)
-		self.set_size_request(645, 510)
-		self.set_border_width(5)
-
-		self.vbox = Gtk.VBox(False, 0)
-
-		self.chat_hbox = Gtk.HBox(False, 0)
-
-		#Add the chat area and put a frame around it
-		self.chat_area = ChatArea()
-		self.chat_area_frame = Gtk.Frame()
-		self.chat_area_frame.add(self.chat_area)
-		self.chat_hbox.pack_start(self.chat_area_frame, True, True, 0)
-
-		# add the chat & tool vbox to the chat hbox o,0
-		self.tool_vbox = ToolVBox(self)
-		self.tool_vbox.ch_toggle_ren.connect("toggled", self.__set_active_channel)
-		self.tool_vbox.channel_tree.connect('row-activated', self.__chan_list_dclick)
-		self.tool_vbox.buddy_tree.connect('row-activated', self.__buddy_list_dclick)
-		self.vbox.pack_start(self.chat_hbox, True, True, 0)
-		self.chat_hbox.pack_start(self.tool_vbox, False, False, 0)
-
-		# setup the chat input & send button
-		self.input_hbox = ChatInputHBox()
-		self.input_hbox.msg_txt.connect('key-press-event', self.__input_keypress)
-		self.input_hbox.send_btn.connect('clicked', self.send_msg)
-		self.vbox.pack_start(self.input_hbox, False, False, 0)
-		
-		#Create the el->gtk colour map
+		# Create the el->html colour map
 		self.__build_colourtable()
 
 		# show the login gui to get the user credentials
 		self.do_login()
 
 		# Add a timer to send the heart beats to the server
-		GObject.timeout_add(15000, self.__keep_alive)
+		self.keep_alive_timer = QTimer(self)
+		self.keep_alive_timer.timeout.connect(self.__keep_alive)
+		self.keep_alive_timer.start(15000)
 
-		self.chat_hbox.show_all()
-		self.vbox.show_all()
-		self.add(self.vbox)
-		self.show_all()
-		self.set_title("%s@%s:%s - Pyela Chat" % (self.elc.session.name, self.elc.host, self.elc.port))
-		self.append_chat(['Welcome to Pyela-Chat, part of the Pyela toolset. Visit http://github.com/atc-/pyela for more information'])
-		self.input_hbox.msg_txt.grab_focus()
+		# Show chat window
+		self.show()
+		self.setWindowTitle("{elc.session.name}@{elc.host}:{elc.port} - Pyela Chat".format(elc=self.elc))
+		welcome_msg = 'Welcome to Pyela-Chat, part of the Pyela toolset. Visit <a href="{url}">{url}</a> for more information.'
+		self.append_html(welcome_msg.format(url='http://github.com/atc-/pyela'))
+		self.msg_txt.setFocus()
+	
+	def __setup_gui(self):
+		self.elc = None
+
+		super().__init__()
+		self.destroyed.connect(self.destroy)
+		###self.connect('delete_event', self.destroy)
+		self.setMinimumSize(645, 510)
+		###self.set_border_width(5)
+
+		# main container
+		container = QWidget()
+		self.vbox = QVBoxLayout()
+		container.setLayout(self.vbox)
+		self.setCentralWidget(container)
+
+		# container for chat area | minimap, channel and buddy lists
+		self.chat_hbox = QHBoxLayout()
+
+		#Add the chat area
+		self.chat_area = QTextBrowser(self)
+		self.chat_area.setReadOnly(True)
+		self.chat_area.setFrameStyle(QFrame.Panel | QFrame.Plain)
+		self.chat_area.setLineWidth(1)
+		self.chat_area.setOpenExternalLinks(True)
+		self.chat_hbox.addWidget(self.chat_area, 1)
+
+		# add the chat & tool vbox to the chat hbox o,0
+		self.tool_vbox = self.__create_tool_vbox()
+		##self.tool_vbox.buddy_tree.connect('row-activated', self.__buddy_list_dclick)
+		self.vbox.addLayout(self.chat_hbox, 1)
+		self.chat_hbox.addLayout(self.tool_vbox, 0)
+
+		# setup the chat input & send button
+		self.input_hbox = self.__create_chat_input_hbox()
+		self.msg_txt.returnPressed.connect(self.send_msg)
+		self.send_btn.clicked.connect(self.send_msg)
+		self.vbox.addLayout(self.input_hbox)
 		
-		self.connect('key_press_event', self.__main_keypress)
+	def __create_chat_input_hbox(self):
+		hbox = QHBoxLayout()
+		self.msg_txt = ChatInput()
+		self.send_btn = QPushButton('Send')
+		hbox.addWidget(self.msg_txt, 1)
+		hbox.addWidget(self.send_btn, 0) #Keep the size of the send button constant, give extra space to the text input field
+		return hbox
 
-		# setup the channel list
-		self.channels = []
-		Gtk.main()
+	def __create_tool_vbox(self):
+		vbox = QVBoxLayout()
+		# set-up the channel & buddy list vbox and the buddy list scroll win
+		##self.blist_scrolled_win = Gtk.ScrolledWindow()
+		##self.blist_scrolled_win.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+		
+		# set up the location string label
+		self.location_lbl = LocationLbl(self)
+		self.location_lbl.setAlignment(Qt.AlignHCenter)
+		vbox.addWidget(self.location_lbl)
+
+		# set-up the minimap
+		##self.minimap = Minimap()
+		##self.minimap.set_size_request(200, 200)
+		##self.pack_start(self.minimap, False, False, 0)
+
+		# Add a digital clock for ingame time
+		self.clock_lbl = QLabel("Time: {:d}:{:02d}".format(0,0))
+		self.clock_lbl.setAlignment(Qt.AlignHCenter)
+		vbox.addWidget(self.clock_lbl)
+
+		self.channel_list = ChannelList(self)
+		#self.channel_view.setUniformRowHeigts(True)
+		if 0:
+			test = QTreeWidgetItem()
+			test.setText(0, "test {}".format(i))
+			test.setTextAlignment(1,Qt.AlignHCenter)
+			#test.setCheckState(1,Qt.Unchecked)
+			self.channel_view.addTopLevelItems([test])
+			rb = QRadioButton(self.channel_view)
+			self.channel_view.setItemWidget(test, 1, rb)
+		vbox.addWidget(self.channel_list, 1)
+
+		# set-up the buddy list tree view
+		self.buddy_list = BuddyList(self)
+		vbox.addWidget(self.buddy_list, 2)
+		return vbox
 	
 	def __build_colourtable(self):
-		"""Build a table of gtk textbuffer tags, mapping EL colour codes"""
-		self.gtk_el_colour_table = {}
+		"""Build a table of textbuffer tags, mapping EL colour codes"""
+		self.qt_el_colour_table = {}
 		for code,rgb in el_colour_char_table.items():
 			if rgb == (1.0,1.0,1.0):
 				#White is invisible on our white background, so fix that
@@ -121,11 +177,16 @@ class ChatGUI(Gtk.Window):
 					diff = (brightness-threshold)/255
 					rgb = [max(0, x-diff) for x in rgb]
 			hexcode = "#%02x%02x%02x" % (rgb[0]*255,rgb[1]*255,rgb[2]*255)
-			self.gtk_el_colour_table[code] = \
-				self.chat_area.chat_buff.create_tag(
-					"el_colour_{}".format(code),
-					 foreground=hexcode
-				 )
+			self.qt_el_colour_table[code] = hexcode
+
+	def keyPressEvent(self, event):
+		if (event.modifiers == Qt.ControlModifier and event.key() == Qt.Key_Q) or \
+			(event.modifiers == Qt.AltModifier and event.keyval == Qt.Key_X):
+			#Quit on ctrl+q or alt+x
+			print("close")
+			self.close()
+		else:
+			super().keyPressEvent(event)
 
 	def do_login(self):
 		# Pass current values to the new login dialog, if there are any
@@ -136,33 +197,33 @@ class ChatGUI(Gtk.Window):
 			defaults['port'] = self.elc.port
 			defaults['host'] = self.elc.host
 			
-		l = LoginGUI(title="Login - Pyela Chat", parent=self, defaults=defaults)
+		l = LoginGUI(parent=self, defaults=defaults)
 		done = False
 
 		# Loop while trying to connect so that we can display error messages
 		while not done:
-			response = l.run()
-			if response == Gtk.ResponseType.OK:
+			response = l.exec()
+			if response:
 				# login credentials entered
 				if self.elc == None:
 					# Initial login, setup the ELConnection
-					session = ELSession(l.user_txt.get_text(), l.passwd_txt.get_text())
-					self.elc = ELConnection(session, l.host_txt.get_text(), l.port_spin.get_value_as_int())
+					session = ELSession(l.user_txt.text(), l.passwd_txt.text())
+					self.elc = ELConnection(session, l.host_txt.text(), l.port_spin.value())
 					self.elc.packet_handler = ExtendedELPacketHandler(self.elc)
 				else:
-					self.elc.session = ELSession(l.user_txt.get_text(), l.passwd_txt.get_text())
-					self.elc.host = l.host_txt.get_text()
-					self.elc.port = l.port_spin.get_value_as_int()
+					self.elc.session = ELSession(l.user_txt.text(), l.passwd_txt.text())
+					self.elc.host = l.host_txt.text()
+					self.elc.port = l.port_spin.value()
 					self.elc.con_tries = 0
-				self.tool_vbox.minimap.el_session = self.elc.session
+				#self.minimap.el_session = self.elc.session
 				if not self.elc.connect():
 					# Connection failed!
-					alert = Gtk.MessageDialog(l, 
-								Gtk.DialogFlags.MODAL, Gtk.MessageType.ERROR, 
-								Gtk.ButtonsType.CLOSE, "Connection failed")
-					alert.format_secondary_text(self.elc.error)
-					alert.run()
-					alert.destroy()
+					alert = QMessageBox()
+					alert.setText("Connection failed")
+					alert.setInformativeText(self.elc.error)
+					alert.setStandardButtons(QMessageBox.Close)
+					alert.setIcon(QMessageBox.Critical)
+					alert.exec()
 					# Re-run the login dialog
 				else:
 					done = True
@@ -171,110 +232,75 @@ class ChatGUI(Gtk.Window):
 				sys.exit(0)
 		self.elc.socket.settimeout(15)
 		l.destroy()
-	
-	def _register_socket_io_watch(self):
-		# Assign the fd of our elconnection to gtk
-		# 
-		# The Windows implementation can only handle one IO watch per socket.
-		# See the PyGTK FAQ entry "gobject.io_add_watch doesn't work with non-blocking sockets on win32!":
-		# http://faq.pygtk.org/index.py?file=faq20.020.htp&req=show
-		source = GObject.io_add_watch(self.elc.fileno(), GObject.IO_IN | GObject.IO_PRI | GObject.IO_ERR | GObject.IO_HUP, self.__socket_event)
-		self.g_watch_sources.append(source)
-	
-	def _unregister_socket_io_watch(self):
-		for s in self.g_watch_sources:
-			GObject.source_remove(s)
-		self.gobject_watch_sources = []
+		
+	def register_socket_notifier(self):
+		# Assign the fd of our elconnection to qt
+		data_notifier = QSocketNotifier(self.elc.fileno(), QSocketNotifier.Read, self)
+		data_notifier.activated.connect(self.__handle_socket_data)
+		err_notifier = QSocketNotifier(self.elc.fileno(), QSocketNotifier.Exception, self)
+		err_notifier.activated.connect(self.__elc_error)
 
-	def append_chat(self, msgs, tag = None):
-		for msg in msgs:
-			end = self.chat_area.chat_buff.get_end_iter()
-			if tag != None:
-				self.chat_area.chat_buff.insert_with_tags(end, msg, tag)
-			else:
-				self.chat_area.chat_buff.insert(end, msg)
-
+		self.socket_notifiers.append((data_notifier, err_notifier))
+	
+	def unregister_socket_notifier(self):
+		for dn,en in self.socket_notifiers:
+			dn.setEnabled(False)
+			en.setEnabled(False)
+			del dn
+			del en
+		self.socket_notifiers = []
+		
+	def append_html(self, msg):
+		cursor = self.chat_area.textCursor()
+		cursor.movePosition(QTextCursor.End, QTextCursor.MoveAnchor)
+		cursor.insertHtml(msg)
 		#Get the current scrollbar position and only scroll if the user is looking
 		# at the bottom line (to allow scrolling up to read backlog)
-		adj = self.chat_area.get_vadjustment()
-		if adj.get_value() + adj.get_page_size() == adj.get_upper():
-			self.chat_area.chat_view.scroll_to_mark(self.chat_area.chat_buff.end_mark, 0.0, False, 0.5, 0.5)
-			
+		scrollbar = self.chat_area.verticalScrollBar()
+		if scrollbar.value() == scrollbar.maximum():
+			cursor.movePosition(QTextCursor.End, QTextCursor.MoveAnchor)
+			self.chat_area.setTextCursor(cursor)
+
+	def append_chat(self, msgs, colour = None):
+		for msg in msgs:			
+			msg = html.escape(msg)
+			msg = msg.replace('\n', '<br>')
+			if colour:
+				msg = '<font color="{}">{}</font>'.format(colour, msg)
+			self.append_html(msg)
+
 	def show_popup_message(self, msg, title="Message"):
-		popup = Gtk.MessageDialog(type=Gtk.MessageType.OTHER,
-								flags=None,
-								text=title,
-								buttons=Gtk.ButtonsType.CLOSE)
-		popup.format_secondary_text(msg)
-		popup.connect("response", lambda _,__: popup.destroy())
-		popup.show()
-
-	def __input_keypress(self, widget, event):
-		if event.keyval == Gdk.keyval_from_name("Return"):
-			self.send_msg(None, None)
-			return True
-		elif event.keyval == Gdk.keyval_from_name("Up"):
-			if self.msgb_idx == 0 and len(self.msg_buff) > 0:
-				#This is the first up-keypress, store what's in the input box as the first entry in the buffer
-				self.msg_buff.insert(0, self.input_hbox.msg_txt.get_text())
-				self.msgb_idx = 1
-				widget.set_text(self.msg_buff[self.msgb_idx])
-			elif self.msgb_idx > 0 and self.msgb_idx < len(self.msg_buff)-1:
-				#Further browsing upwards in the buffer
-				self.msgb_idx += 1
-				widget.set_text(self.msg_buff[self.msgb_idx])
-			#Position the cursor at the end of the input
-			self.input_hbox.msg_txt.set_position(self.input_hbox.msg_txt.get_text_length())
-			return True
-		elif event.keyval == Gdk.keyval_from_name("Down"):
-			if self.msgb_idx > 1:
-				self.msgb_idx -= 1
-				widget.set_text(self.msg_buff[self.msgb_idx])
-			elif self.msgb_idx == 1:
-				#We're at the bottom of the buffer, restore what was initially in the input box and remove it from the list of input
-				widget.set_text(self.msg_buff.pop(0))
-				self.msgb_idx = 0
-			#Position the cursor at the end of the input
-			widget.set_position(self.input_hbox.msg_txt.get_text_length())
-			return True
-		elif event.keyval == Gdk.keyval_from_name("slash") and len(widget.get_text()):
-			#Allow "//" input to reply to last person we received a PM from
-			old_text = widget.get_text()
-			if self.last_pm_from != None and old_text[0] == '/' and widget.get_position() == 1:
-				new_text = '/'+self.last_pm_from+' '+old_text[1:]
-				widget.set_text(new_text)
-				widget.set_position(1+len(self.last_pm_from)+1)
-				return True
-		return False
-
-	def __main_keypress(self, widget, event=None):
-		if (event.state == Gdk.ModifierType.CONTROL_MASK and event.keyval == Gdk.keyval_from_name("q")) or \
-			(event.state == Gdk.ModifierType.MOD1_MASK and event.keyval == Gdk.keyval_from_name("x")):
-			#Quit on ctrl+q or alt+x
-			sys.exit(0)
+		alert = QMessageBox(self)
+		alert.setText(msg)
+		alert.setStandardButtons(QMessageBox.Close)
+		alert.setIcon(QMessageBox.Information)
+		alert.setWindowModality(Qt.NonModal)
+		alert.setAttribute(Qt.WA_DeleteOnClose, True)
+		alert.show()
 	
-	def send_msg(self, widget, data=None):
-		msg = self.input_hbox.msg_txt.get_text()
+	def send_msg(self, widget=None, data=None):
+		msg = self.msg_txt.text()
 		if msg != '':
 			t = ELNetToServer.RAW_TEXT
 			if msg.startswith('/'):
+				#PMs should not include the /, but use a special type
 				t = ELNetToServer.SEND_PM
-				msg = self.input_hbox.msg_txt.get_text()[1:]
+				msg = msg[1:]
 			
 			el_msg = str_to_el_str(str(msg))
 			self.elc.send(ELPacket(t, el_msg))
-			self.input_hbox.msg_txt.set_text("")
+			self.msg_txt.setText('')
 			#input text buffer handling
-			if self.msgb_idx > 0:
+			if self.msg_txt.msgb_idx > 0:
 				#Remove any un-sent text from the input buffer
-				self.msg_buff.pop(0)
-			self.msgb_idx = 0
+				self.msg_txt.msg_buff.pop(0)
+			self.msg_txt.msgb_idx = 0
 			if t == ELNetToServer.SEND_PM:
 				#Re-add the / that was removed above
 				msg = '/'+msg
-			if len(self.msg_buff) == 0 or self.msg_buff[0] != msg:
+			if len(self.msg_txt.msg_buff) == 0 or self.msg_txt.msg_buff[0] != msg:
 				#Avoid duplicate entries in the backlog
-				self.msg_buff.insert(0, msg)
+				self.msg_txt.msg_buff.insert(0, msg)
 		return True
 	
 	def __keep_alive(self):
@@ -284,14 +310,8 @@ class ChatGUI(Gtk.Window):
 			self.elc.keep_alive()
 		return True
 
-	def __socket_event(self, fd, condition):
-		if condition&(GObject.IO_ERR | GObject.IO_HUP):
-			return self.__elc_error(fd, condition)
-		elif condition&(GObject.IO_IN | GObject.IO_PRI):
-			return self.__handle_socket_data(fd, condition)
-
-	def __elc_error(self, fd, condition, msg = None):
-		"""Called by gtk when an error with the socket occurs.
+	def __elc_error(self, msg = None):
+		"""Called by qt when an error with the socket occurs.
 		May also be called by self.__process_packets, in which case msg is set"""
 		err_str = "A networking error occured, please log in again"
 		if msg != None:
@@ -300,47 +320,160 @@ class ChatGUI(Gtk.Window):
 			desc_str = None
 		self.append_chat(["\n", err_str])
 		if self.elc.status != DISCONNECTED:
-			# If .status is not DISCONNECTED, GTK has detected an error.
+			# If .status is not DISCONNECTED, Qt has detected an error.
 			# (We set .status to DISCONNECTED when it's detected by us)
 			self.elc.disconnect()
 		# Display the error message in a popup dialog, asking the user what to do
 		alert = NetworkingErrorAlert(self, err_str, desc_str)
-		response = alert.run()
-		alert.destroy()
-		if response == Gtk.ResponseType.REJECT:
+		response = alert.exec_()
+		if response == QMessageBox.Yes:
 			# Log in as other user
 			self.do_login()
-		elif response == Gtk.ResponseType.ACCEPT:
+		elif response == QMessageBox.Retry:
 			# Reconnect
 			self.elc.reconnect()
 		else:
 			# Cancel
 			sys.exit(0)
 
-	def __handle_socket_data(self, fd, condition):
+	def __handle_socket_data(self):
 		try:
 			packets = self.elc.recv()
 		except ConnectionException as e:
-			self.__elc_error(None, None, e.value)
+			self.__elc_error(e.value)
 			return True
 		events = self.elc.process_packets(packets)
 		for e in events:
 			ELSimpleEventManager().raise_event(e)
 		return True
-	
-	def __set_active_channel(self, renderer, path):
-		"""User clicked an 'active' radio button in the channel list treeview.
-		This is a signal handler for the 'toggled' signal."""
-		#Update the session's list and the server
-		ch = self.elc.session.get_channel_by_num(self.tool_vbox.channel_list[path][2])
-		if ch == None:
-			#TODO: This shouldn't happen, find a proper action
-			return
-		self.elc.session.set_active_channel(ch)
-		#Update the GUI list
-		self.tool_vbox.rebuild_channel_list(self.elc.session.channels)
 
+class ChatInput(QLineEdit):
+	def __init__(self):
+		super().__init__()
+		self.msg_buff = [] # list of messages, for CTRL+UP/UP and DOWN
+		self.msgb_idx = 0
+		self.last_pm_from = None
+
+	def keyPressEvent(self, event):
+		if event.key() == Qt.Key_Up:
+			if self.msgb_idx == 0 and len(self.msg_buff) > 0:
+				#This is the first up-keypress, store what's in the input box as the first entry in the buffer
+				self.msg_buff.insert(0, self.text())
+				self.msgb_idx = 1
+				self.setText(self.msg_buff[self.msgb_idx])
+			elif self.msgb_idx > 0 and self.msgb_idx < len(self.msg_buff)-1:
+				#Further browsing upwards in the buffer
+				self.msgb_idx += 1
+				self.setText(self.msg_buff[self.msgb_idx])
+			#Position the cursor at the end of the input
+			self.setCursorPosition(len(self.text()))
+		elif event.key() == Qt.Key_Down:
+			if self.msgb_idx > 1:
+				self.msgb_idx -= 1
+				self.setText(self.msg_buff[self.msgb_idx])
+			elif self.msgb_idx == 1:
+				#We're at the bottom of the buffer, restore what was initially in the input box and remove it from the list of input
+				self.setText(self.msg_buff.pop(0))
+				self.msgb_idx = 0
+			#Position the cursor at the end of the input
+			self.setCursorPosition(len(self.text()))
+		elif event.key() == Qt.Key_Slash and len(self.text()):
+			#Allow "//" input to reply to last person we received a PM from
+			old_text = self.text()
+			if self.last_pm_from is not None and old_text[0] == '/' and self.cursorPosition() == 1:
+				new_text = '/'+self.last_pm_from+' '+old_text[1:]
+				self.setText(new_text)
+				self.setCursorPosition(1+len(self.last_pm_from)+1)
+			else:
+				super().keyPressEvent(event)
+		else:
+			super().keyPressEvent(event)
+
+class ChannelList(QTreeWidget):
+	def __init__(self, parent):
+		super().__init__(parent)
+		self.main_win = parent
+		self.setColumnCount(2)
+		self.setSortingEnabled(False)
+		self.setHeaderLabels(['Channels', 'Active'])
+		self.header().setStretchLastSection(False)
+		self.header().setSectionResizeMode(0,QHeaderView.Stretch)
+		self.header().setSectionResizeMode(1,QHeaderView.ResizeToContents)
+		self.itemDoubleClicked.connect(self.__insert_chan_num)
+
+	def __set_active_channel(self, active):
+		"""User clicked an 'active' radio button in the channel list treeview.
+		This is a signal handler for the 'checked' signal of the radiobutton."""
+		if not active:
+			# Radio button being un-toggled, ignore
+			return
+		#Find toggled radio button's number
+		item = self.topLevelItem(0)
+		ch = None
+		while item:
+			rb = self.itemWidget(item, 1)
+			if rb.isChecked():
+				ch = item.data(0, Qt.UserRole)
+				break
+			item = self.itemBelow(item)
+		if not ch:
+			# No checked items.
+			# TODO: This shouldn't happen, find a proper action
+			return
+		#Update the session's list and the server
+		self.main_win.elc.session.set_active_channel(ch)
+		#Update the GUI list
+		self.rebuild_channel_list(self.main_win.elc.session.channels)
+
+	def __insert_chan_num(self, item, column):
+		"""
+		User double-clicked a row in the channel list treeview.
+		Add @@N if main_win.msg_txt is empty
+		"""
+		chan = item.data(0, Qt.UserRole)
+		if self.main_win.msg_txt.text() == "":
+			# add @@N
+			self.main_win.msg_txt.setText("@@{} ".format(chan.number))
+			self.main_win.msg_txt.setFocus()
+			#self.input_hbox.msg_txt.set_position(self.input_hbox.msg_txt.get_text_length())
+
+	def rebuild_channel_list(self, channels):
+		"""Rebuild the channel list to correspond with the list passed as the 'channels' parameter"""
+		self.clear()
+		for chan in channels:
+			if chan.number >= 1000000000:
+				c_str = "Guild"
+			else:
+				c_str = str(chan.number)
+			#TODO: #14: Replace element 0 in the below tuple with the channel's text name (if any)
+			##self.channel_list.append((c_str, chan.is_active, chan.number))
+			list_item = QTreeWidgetItem()
+			# Add channel name
+			list_item.setText(0, c_str)
+			# Try to align radio button
+			list_item.setTextAlignment(1, Qt.AlignHCenter)
+			# Store channel object
+			list_item.setData(0, Qt.UserRole, chan)
+			# Add to list view before connecting radio button
+			self.addTopLevelItems([list_item])
+			# Create radio button
+			rb = QRadioButton(self)
+			if chan.is_active:
+				rb.setChecked(True)
+			rb.toggled.connect(self.__set_active_channel)
+			self.setItemWidget(list_item, 1, rb)
+
+class BuddyList(QTreeWidget):
+	def __init__(self, parent):
+		super().__init__(parent)
+		self.setColumnCount(1)
+		self.setHeaderLabels(['Buddies'])
+	def append(self, buddy):
+		item = QTreeWidgetItem()
+		item.setText(0, buddy)
+		self.addTopLevelItems([buddy])
 	def __buddy_list_dclick(self, buddy_tree, path, col, data=None):
+		# TODO: TRanslate to Qt
 		"""User double-clicked a row in the buddy list treeview"""
 		# add /[name] if self.input_hbox.msg_txt is empty, otherwise append the name
 		iter = self.tool_vbox.buddy_list.get_iter(path)
@@ -352,143 +485,3 @@ class ChatGUI(Gtk.Window):
 			self.input_hbox.msg_txt.set_text("%s %s" % (self.input_hbox.msg_txt.get_text(), buddy))
 		self.input_hbox.msg_txt.grab_focus()
 		self.input_hbox.msg_txt.set_position(self.input_hbox.msg_txt.get_text_length())
-
-	def __chan_list_dclick(self, channel_tree, path, col, data=None):
-		"""User double-clicked a row in the channel list treeview"""
-		# add @@N if input_hbox.msg_txt is empty
-		iter = self.tool_vbox.channel_list.get_iter(path)
-		chan = self.tool_vbox.channel_list.get_value(iter, 0)
-		if self.input_hbox.msg_txt.get_text() == "":
-			# add @@N
-			self.input_hbox.msg_txt.set_text("@@%s " % chan)
-			self.input_hbox.msg_txt.grab_focus()
-			self.input_hbox.msg_txt.set_position(self.input_hbox.msg_txt.get_text_length())
-	
-	def find_buddy_row(self, buddy):
-		"""Get the gtk.Row where buddy is"""
-		if not buddy:
-			return None
-		for row in self.tool_vbox.buddy_list:
-			if row[0].upper() == buddy.upper():
-				return row
-		return None
-	
-	def find_buddy(self, buddy):
-		"""Return the iterator referencing buddy, or None if buddy is not in the buddy_list"""
-		if buddy:
-			return self.find_buddy_row(buddy).iter
-		else:
-			return None
-
-	def destroy(self, widget, data=None):
-		Gtk.main_quit()
-		return False
-
-class ChatArea(Gtk.ScrolledWindow):
-	"""A gtk.ScrolledWindow that contains a chat view and buffer for 
-	raw text"""
-	def __init__(self):
-		# set-up the scrollable window
-		super(ChatArea, self).__init__()
-		self.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
-
-		# setup the chat text area
-		self.chat_buff = Gtk.TextBuffer()
-		# create a mark at the end of the buffer that we can scroll to
-		end_mark = self.chat_buff.create_mark('end', self.chat_buff.get_end_iter(), False)
-		self.chat_buff.end_mark = end_mark
-		self.chat_view = Gtk.TextView()
-		self.chat_view.set_buffer(self.chat_buff)
-		self.chat_view.set_editable(False)
-		self.chat_view.set_can_focus(False)
-		self.chat_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
-		self.chat_view.set_cursor_visible(False)
-		self.add(self.chat_view)
-		self.show_all()
-
-class ToolVBox(Gtk.VBox):
-	"""A vertical gtk.Box that contains the minimap, clock, channel and buddy list widgets"""
-
-	def __init__(self, main_window):
-		super(ToolVBox, self).__init__()
-		# set-up the channel & buddy list vbox and the buddy list scroll win
-		self.blist_scrolled_win = Gtk.ScrolledWindow()
-		self.blist_scrolled_win.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
-		
-		# set up the location string label
-		self.location_lbl = LocationLbl(main_window)
-		self.pack_start(self.location_lbl, False, False, 0)
-
-		# set-up the minimap
-		self.minimap = Minimap()
-		self.minimap.set_size_request(200, 200)
-		self.pack_start(self.minimap, False, False, 0)
-
-		# Add a digital clock for ingame time
-		self.clock_lbl = Gtk.Label("Time: %d:%02d" % (0,0))
-		self.pack_start(self.clock_lbl, False, True, 0)
-
-		# set-up the channel list tree view
-		#  List storage
-		self.channel_list = Gtk.ListStore(str, bool, int)
-		#  Renderers
-		#   Text renderer
-		self.ch_text_ren = Gtk.CellRendererText()
-		self.ch_text_ren.set_property("visible", True)
-		#   Active channel radio renderer
-		self.ch_toggle_ren = Gtk.CellRendererToggle()
-		self.ch_toggle_ren.set_property("visible", True)
-		self.ch_toggle_ren.set_property("activatable", True)
-		self.ch_toggle_ren.set_property("radio", True)
-		#  Columns containing the renderers
-		#   Channel column
-		self.channel_col = Gtk.TreeViewColumn("Channels")
-		self.channel_col.pack_start(self.ch_text_ren, True)
-		self.channel_col.add_attribute(self.ch_text_ren, 'text', 0)
-		self.channel_col.set_expand(True)
-		#   Active channel column
-		self.active_ch_col = Gtk.TreeViewColumn("Active")
-		self.active_ch_col.pack_start(self.ch_toggle_ren, False)
-		self.active_ch_col.add_attribute(self.ch_toggle_ren, 'active', 1)
-		self.active_ch_col.set_expand(False)
-		#  Tree view containing the columns
-		self.channel_tree = Gtk.TreeView(self.channel_list)
-		self.channel_tree.set_size_request(self.channel_tree.get_size_request()[0], 95) #TODO: Calculate the height so that exactly three elements will fit in the list
-		self.channel_tree.set_reorderable(True)
-		self.channel_tree.append_column(self.channel_col)
-		self.channel_tree.append_column(self.active_ch_col)
-
-		# set-up the buddy list tree view
-		self.buddy_list = Gtk.ListStore(GObject.TYPE_STRING)
-		self.buddy_tree = Gtk.TreeView(self.buddy_list)
-		self.buddy_cell_ren = Gtk.CellRendererText()
-		self.buddy_cell_ren.set_property("visible", "TRUE")
-		self.buddy_col = Gtk.TreeViewColumn("Buddies", self.buddy_cell_ren, markup=0)
-		self.buddy_tree.append_column(self.buddy_col)
-		self.blist_scrolled_win.add(self.buddy_tree)
-
-		self.pack_start(self.channel_tree, False, False, 0)
-		self.pack_start(self.blist_scrolled_win, True, True, 0)
-		self.show_all()
-	
-	def rebuild_channel_list(self, channels):
-		"""Rebuild the channel list to correspond with the list passed as the 'channels' parameter"""
-		self.channel_list.clear()
-		for chan in channels:
-			if chan.number >= 1000000000:
-				c_str = "Guild"
-			else:
-				c_str = "%s" % chan.number
-			#TODO: #14: Replace element 0 in the below tuple with the channel's text name (if any)
-			self.channel_list.append((c_str, chan.is_active, chan.number))
-
-class ChatInputHBox(Gtk.HBox):
-	"""Extends gtk.HBox to provide an input (gtk.Entry) and send button"""
-	def __init__(self):
-		super(ChatInputHBox, self).__init__()
-		self.msg_txt = Gtk.Entry()
-		self.msg_txt.set_max_length(155)
-		self.send_btn = Gtk.Button('Send')
-		self.pack_start(self.msg_txt, True, True, 0)
-		self.pack_start(self.send_btn, False, False, 0) #Keep the size of the send button constant, give extra space to the text input field
-		self.show_all()
