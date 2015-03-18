@@ -104,7 +104,6 @@ class ChatGUI(QMainWindow):
 
 		# add the chat & tool vbox to the chat hbox o,0
 		self.tool_vbox = self.__create_tool_vbox()
-		##self.tool_vbox.buddy_tree.connect('row-activated', self.__buddy_list_dclick)
 		self.vbox.addLayout(self.chat_hbox, 1)
 		self.chat_hbox.addLayout(self.tool_vbox, 0)
 
@@ -144,15 +143,6 @@ class ChatGUI(QMainWindow):
 		vbox.addWidget(self.clock_lbl)
 
 		self.channel_list = ChannelList(self)
-		#self.channel_view.setUniformRowHeigts(True)
-		if 0:
-			test = QTreeWidgetItem()
-			test.setText(0, "test {}".format(i))
-			test.setTextAlignment(1,Qt.AlignHCenter)
-			#test.setCheckState(1,Qt.Unchecked)
-			self.channel_view.addTopLevelItems([test])
-			rb = QRadioButton(self.channel_view)
-			self.channel_view.setItemWidget(test, 1, rb)
 		vbox.addWidget(self.channel_list, 1)
 
 		# set-up the buddy list tree view
@@ -401,6 +391,15 @@ class ChannelList(QTreeWidget):
 		self.header().setSectionResizeMode(1,QHeaderView.ResizeToContents)
 		self.itemDoubleClicked.connect(self.__insert_chan_num)
 
+	# def sizeHint(self):
+	# 	"""
+	# 	Set width to a small number to allow other widgets to determine the width
+	# 	:return:QSize
+	# 	"""
+	# 	size = super().sizeHint()
+	# 	size.setWidth(10)
+	# 	return size
+
 	def __set_active_channel(self, active):
 		"""User clicked an 'active' radio button in the channel list treeview.
 		This is a signal handler for the 'checked' signal of the radiobutton."""
@@ -435,7 +434,6 @@ class ChannelList(QTreeWidget):
 			# add @@N
 			self.main_win.msg_txt.setText("@@{} ".format(chan.number))
 			self.main_win.msg_txt.setFocus()
-			#self.input_hbox.msg_txt.set_position(self.input_hbox.msg_txt.get_text_length())
 
 	def rebuild_channel_list(self, channels):
 		"""Rebuild the channel list to correspond with the list passed as the 'channels' parameter"""
@@ -466,22 +464,29 @@ class ChannelList(QTreeWidget):
 class BuddyList(QTreeWidget):
 	def __init__(self, parent):
 		super().__init__(parent)
+		self.main_win = parent
 		self.setColumnCount(1)
 		self.setHeaderLabels(['Buddies'])
+		self.itemDoubleClicked.connect(self.__insert_buddy_name)
+	# def sizeHint(self):
+	# 	"""
+	# 	Set width to a small number to allow other widgets to determine the width
+	# 	:return:QSize
+	# 	"""
+	# 	size = super().sizeHint()
+	# 	size.setWidth(10)
+	# 	return size
 	def append(self, buddy):
 		item = QTreeWidgetItem()
 		item.setText(0, buddy)
-		self.addTopLevelItems([buddy])
-	def __buddy_list_dclick(self, buddy_tree, path, col, data=None):
-		# TODO: TRanslate to Qt
-		"""User double-clicked a row in the buddy list treeview"""
+		self.addTopLevelItems([item])
+	def __insert_buddy_name(self, item, column):
+		"""User double-clicked a row in the buddy list"""
 		# add /[name] if self.input_hbox.msg_txt is empty, otherwise append the name
-		iter = self.tool_vbox.buddy_list.get_iter(path)
-		buddy = self.tool_vbox.buddy_list.get_value(iter, 0)
-		if self.input_hbox.msg_txt.get_text() == "":
+		buddy = item.text(0)
+		if self.main_win.msg_txt.text() == "":
 			# add /[name]
-			self.input_hbox.msg_txt.set_text("/%s " % buddy)
+			self.main_win.msg_txt.setText("/%s " % buddy)
 		else:
-			self.input_hbox.msg_txt.set_text("%s %s" % (self.input_hbox.msg_txt.get_text(), buddy))
-		self.input_hbox.msg_txt.grab_focus()
-		self.input_hbox.msg_txt.set_position(self.input_hbox.msg_txt.get_text_length())
+			self.main_win.msg_txt.setText("%s %s" % (self.main_win.msg_txt.text(), buddy))
+		self.main_win.msg_txt.setFocus()
