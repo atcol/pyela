@@ -15,9 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with Pyela.  If not, see <http://www.gnu.org/licenses/>.
 
-from PyQt5.QtWidgets import QWidget
-from PyQt5.QtGui import QPainter, QPen, QColor
-from PyQt5.QtCore import Qt, QSize, QPointF
+from PyQt5.QtWidgets import QWidget, QToolTip
+from PyQt5.QtGui import QPainter, QPen, QColor, QHelpEvent
+from PyQt5.QtCore import QSize, QPointF, QEvent
 import math
 from pyela.el.logic.eventmanagers import ELSimpleEventManager
 from logic.eventhandler import MinimapEventHandler
@@ -27,16 +27,13 @@ class Minimap(QWidget):
 		super().__init__()
 		self.minimumSizeHint = QSize(50, 50)
 		self.border_width = 2  # Border of minimap circle
-		# self.add_events(Gdk.EventMask.SCROLL_MASK)
-		# self.connect("scroll-event", self.mouse_scroll)
-		# self.connect("query-tooltip", self.tooltip)
-		# self.set_property("has-tooltip", True)
 		self.dots = []
 		self.view_radius = 30 #Number of tiles we see in any direction
 		self.max_view_radius = 50 #The maximum number of tiles we can scroll to see
 		self.min_view_radius = 3 #Minimum number of tiles we can scroll to see
 		self.own_x = 0 #Your own X and Y coordinates
 		self.own_y = 0
+		self.setMouseTracking(True)
 		ELSimpleEventManager().add_handler(MinimapEventHandler(self))
 
 	def paintEvent(self, e):
@@ -74,25 +71,43 @@ class Minimap(QWidget):
 				dot_radius = float(dot.size)/2*map_to_screen_ratio
 				qp.drawEllipse(centre, dot_radius, dot_radius)
 	
-	def mouse_scroll(self, widget, event):
-		"""Scroll GTK event handler, zooms the minimap"""
-		if event.direction == Gdk.ScrollDirection.UP:
-			self.view_radius -= 1
-			if self.view_radius < self.min_view_radius:
-				self.view_radius = self.min_view_radius
-		elif event.direction == Gdk.ScrollDirection.DOWN:
-			self.view_radius += 1
-			if self.view_radius > self.max_view_radius:
-				self.view_radius = self.max_view_radius
+	def wheelEvent(self, event):
+		"""Scroll event handler, zooms the minimap"""
+		if not event.angleDelta().y():
+			#Only accept up/down scroll
+			event.ignore()
+			return
+		direction = event.angleDelta().y()/abs(event.angleDelta().y())
+		self.view_radius -= direction
+		if self.view_radius < self.min_view_radius:
+			self.view_radius = self.min_view_radius
+		elif self.view_radius > self.max_view_radius:
+			self.view_radius = self.max_view_radius
+
 		self.update()
-	
-	def tooltip(self, widget, x, y, keyboard_mode, tooltip):
-		if keyboard_mode:
-			return False
-		dot = self._get_dot_near_position(x, y)
+		event.accept()
+
+	def event(self, event):
+		"""Generic event handler to catch tooltip events"""
+		# Currently disabled, using mouseMoveEvent instead.
+		if 0 and event.type() == QEvent.ToolTip:
+			helpevent = QHelpEvent(event)
+			if self.tooltipEvent(helpevent.pos(), helpevent.globalPos()):
+				event.accept()
+			else:
+				event.ignore()
+			return True
+		return super().event(event)
+
+	def mouseMoveEvent(self, event):
+		self.tooltipEvent(event.pos(), event.globalPos())
+
+	def tooltipEvent(self, local_pos, global_pos):
+		dot = self._get_dot_near_position(local_pos.x(), local_pos.y())
 		if dot == None:
+			QToolTip.hideText()
 			return False
-		tooltip.set_text(dot.name)
+		QToolTip.showText(global_pos, dot.name)
 		return True
 	
 	def _get_dot_near_position(self, x, y):
