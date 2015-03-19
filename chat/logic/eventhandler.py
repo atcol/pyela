@@ -142,7 +142,7 @@ class MinimapEventHandler(BaseEventHandler):
 				actor.dot.y = actor.y_pos
 				if actor.id == self.minimap.el_session.own_actor_id:
 					self.minimap.set_own_pos(actor.x_pos, actor.y_pos)
-				self.minimap.redraw_canvas()
+				self.minimap.update()
 			elif event.type.id == ELNetFromServer.YOU_ARE:
 				actor = event.data
 				self.minimap.set_own_pos(actor.x_pos, actor.y_pos)

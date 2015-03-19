@@ -27,7 +27,7 @@ from pyela.el.logic.session import ELSession
 from pyela.el.logic.eventmanagers import ELSimpleEventManager
 from pyela.el.util.strings import el_colour_char_table, str_to_el_str
 from gui.login import LoginGUI
-#from gui.minimapwidget import Minimap
+from gui.minimapwidget import Minimap
 from gui.networking_error import NetworkingErrorAlert
 from gui.locationlbl import LocationLbl
 import html
@@ -40,7 +40,7 @@ from PyQt5.QtWidgets import QMainWindow, QHBoxLayout, QVBoxLayout,\
 							QMessageBox, QTextBrowser
 from PyQt5.QtCore import QSocketNotifier
 from PyQt5.QtGui import QTextCursor
-from PyQt5.QtCore import Qt,QTimer
+from PyQt5.QtCore import Qt, QTimer
 
 from logic.eventhandler import ChatGUIEventHandler
 
@@ -133,9 +133,9 @@ class ChatGUI(QMainWindow):
 		vbox.addWidget(self.location_lbl)
 
 		# set-up the minimap
-		##self.minimap = Minimap()
-		##self.minimap.set_size_request(200, 200)
-		##self.pack_start(self.minimap, False, False, 0)
+		self.minimap = Minimap()
+		self.minimap.setMinimumSize(200, 200)
+		vbox.addWidget(self.minimap)
 
 		# Add a digital clock for ingame time
 		self.clock_lbl = QLabel("Time: {:d}:{:02d}".format(0,0))
@@ -143,11 +143,11 @@ class ChatGUI(QMainWindow):
 		vbox.addWidget(self.clock_lbl)
 
 		self.channel_list = ChannelList(self)
-		vbox.addWidget(self.channel_list, 1)
+		vbox.addWidget(self.channel_list,1)
 
 		# set-up the buddy list tree view
 		self.buddy_list = BuddyList(self)
-		vbox.addWidget(self.buddy_list, 2)
+		vbox.addWidget(self.buddy_list, 1)
 		return vbox
 	
 	def __build_colourtable(self):
@@ -205,7 +205,7 @@ class ChatGUI(QMainWindow):
 					self.elc.host = l.host_txt.text()
 					self.elc.port = l.port_spin.value()
 					self.elc.con_tries = 0
-				#self.minimap.el_session = self.elc.session
+				self.minimap.el_session = self.elc.session
 				if not self.elc.connect():
 					# Connection failed!
 					alert = QMessageBox()
@@ -391,14 +391,14 @@ class ChannelList(QTreeWidget):
 		self.header().setSectionResizeMode(1,QHeaderView.ResizeToContents)
 		self.itemDoubleClicked.connect(self.__insert_chan_num)
 
-	# def sizeHint(self):
-	# 	"""
-	# 	Set width to a small number to allow other widgets to determine the width
-	# 	:return:QSize
-	# 	"""
-	# 	size = super().sizeHint()
-	# 	size.setWidth(10)
-	# 	return size
+	def sizeHint(self):
+		"""
+		Set width to a small number to allow other widgets to determine the width
+		:return:QSize
+		"""
+		size = super().sizeHint()
+		size.setWidth(10)
+		return size
 
 	def __set_active_channel(self, active):
 		"""User clicked an 'active' radio button in the channel list treeview.
@@ -468,14 +468,14 @@ class BuddyList(QTreeWidget):
 		self.setColumnCount(1)
 		self.setHeaderLabels(['Buddies'])
 		self.itemDoubleClicked.connect(self.__insert_buddy_name)
-	# def sizeHint(self):
-	# 	"""
-	# 	Set width to a small number to allow other widgets to determine the width
-	# 	:return:QSize
-	# 	"""
-	# 	size = super().sizeHint()
-	# 	size.setWidth(10)
-	# 	return size
+	def sizeHint(self):
+		"""
+		Set width to a small number to allow other widgets to determine the width
+		:return:QSize
+		"""
+		size = super().sizeHint()
+		size.setWidth(10)
+		return size
 	def append(self, buddy):
 		item = QTreeWidgetItem()
 		item.setText(0, buddy)

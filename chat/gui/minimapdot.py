@@ -20,7 +20,7 @@ class MinimapDot:
 	def __init__(self, x, y):
 		self.x = x
 		self.y = y
-		self.size = 1 #The size of a dot (in tiles)
-		self.colour = (1, 0, 0) #RGB colours
-		self.text = None #The "name" of the dot
+		self.size = 1 # The size of a dot (in tiles)
+		self.colour = (1, 0, 0) # RGB colours
+		self.text = None # The "name" of the dot
 		self.minimap = None
