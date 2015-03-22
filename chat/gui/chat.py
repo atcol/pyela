@@ -123,10 +123,9 @@ class ChatGUI(QMainWindow):
 
 	def __create_tool_vbox(self):
 		vbox = QVBoxLayout()
+		vbox.setSpacing(0)
 		# set-up the channel & buddy list vbox and the buddy list scroll win
-		##self.blist_scrolled_win = Gtk.ScrolledWindow()
-		##self.blist_scrolled_win.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
-		
+
 		# set up the location string label
 		self.location_lbl = LocationLbl(self)
 		self.location_lbl.setAlignment(Qt.AlignHCenter)
@@ -143,7 +142,7 @@ class ChatGUI(QMainWindow):
 		vbox.addWidget(self.clock_lbl)
 
 		self.channel_list = ChannelList(self)
-		vbox.addWidget(self.channel_list,1)
+		vbox.addWidget(self.channel_list, 0)
 
 		# set-up the buddy list tree view
 		self.buddy_list = BuddyList(self)
@@ -384,6 +383,7 @@ class ChannelList(QTreeWidget):
 		super().__init__(parent)
 		self.main_win = parent
 		self.setColumnCount(2)
+		self.setUniformRowHeights(True)
 		self.setSortingEnabled(False)
 		self.setHeaderLabels(['Channels', 'Active'])
 		self.header().setStretchLastSection(False)
@@ -393,11 +393,18 @@ class ChannelList(QTreeWidget):
 
 	def sizeHint(self):
 		"""
-		Set width to a small number to allow other widgets to determine the width
+		Set width to a small number to allow other widgets to determine the width,
+		calculate height based on content
 		:return:QSize
 		"""
+		height = self.header().size().height()
+		item = self.topLevelItem(0)
+		while item:
+			height += self.rowHeight(self.indexFromItem(item))
+			item = self.itemBelow(item)
 		size = super().sizeHint()
 		size.setWidth(10)
+		size.setHeight(height+2) #Magic number +2 to get rid of scroll bar
 		return size
 
 	def __set_active_channel(self, active):
@@ -460,12 +467,14 @@ class ChannelList(QTreeWidget):
 				rb.setChecked(True)
 			rb.toggled.connect(self.__set_active_channel)
 			self.setItemWidget(list_item, 1, rb)
+		self.updateGeometry()
 
 class BuddyList(QTreeWidget):
 	def __init__(self, parent):
 		super().__init__(parent)
 		self.main_win = parent
 		self.setColumnCount(1)
+		self.setUniformRowHeights(True)
 		self.setHeaderLabels(['Buddies'])
 		self.itemDoubleClicked.connect(self.__insert_buddy_name)
 	def sizeHint(self):
@@ -475,6 +484,7 @@ class BuddyList(QTreeWidget):
 		"""
 		size = super().sizeHint()
 		size.setWidth(10)
+		size.setHeight(10)
 		return size
 	def append(self, buddy):
 		item = QTreeWidgetItem()
