@@ -81,7 +81,6 @@ class ChatGUI(QMainWindow):
 
 		super().__init__()
 		self.destroyed.connect(self.destroy)
-		###self.connect('delete_event', self.destroy)
 		self.setMinimumSize(645, 510)
 		###self.set_border_width(5)
 
@@ -94,7 +93,7 @@ class ChatGUI(QMainWindow):
 		# container for chat area | minimap, channel and buddy lists
 		self.chat_hbox = QHBoxLayout()
 
-		#Add the chat area
+		# Add the chat area
 		self.chat_area = QTextBrowser(self)
 		self.chat_area.setReadOnly(True)
 		self.chat_area.setFrameStyle(QFrame.Panel | QFrame.Plain)
@@ -118,7 +117,7 @@ class ChatGUI(QMainWindow):
 		self.msg_txt = ChatInput()
 		self.send_btn = QPushButton('Send')
 		hbox.addWidget(self.msg_txt, 1)
-		hbox.addWidget(self.send_btn, 0) #Keep the size of the send button constant, give extra space to the text input field
+		hbox.addWidget(self.send_btn, 0)  #Keep the size of the send button constant, give extra space to the text input field
 		return hbox
 
 	def __create_tool_vbox(self):
@@ -141,10 +140,11 @@ class ChatGUI(QMainWindow):
 		self.clock_lbl.setAlignment(Qt.AlignHCenter)
 		vbox.addWidget(self.clock_lbl)
 
+		# Add the channel list
 		self.channel_list = ChannelList(self)
 		vbox.addWidget(self.channel_list, 0)
 
-		# set-up the buddy list tree view
+		# Add the buddy list
 		self.buddy_list = BuddyList(self)
 		vbox.addWidget(self.buddy_list, 1)
 		return vbox
@@ -152,27 +152,27 @@ class ChatGUI(QMainWindow):
 	def __build_colourtable(self):
 		"""Build a table of textbuffer tags, mapping EL colour codes"""
 		self.qt_el_colour_table = {}
-		for code,rgb in el_colour_char_table.items():
-			if rgb == (1.0,1.0,1.0):
-				#White is invisible on our white background, so fix that
+		for code, rgb in el_colour_char_table.items():
+			if rgb == (1.0, 1.0, 1.0):
+				# White is invisible on our white background, so fix that
 				rgb = (0, 0, 0)
 			else:
-				#Calculate the brightness of the colour using the HSP
-				#algorithm (http://alienryderflex.com/hsp.html)
+				# Calculate the brightness of the colour using the HSP
+				# algorithm (http://alienryderflex.com/hsp.html)
 				brightness = math.sqrt(0.299*(rgb[0]*255)**2 + 0.587*(rgb[1]*255)**2 + 0.114*(rgb[2]*255)**2)
-				threshold = 100#180
+				threshold = 100  #180
 				if brightness > threshold:
-					#Invert bright colours to make them visible
+					# Invert bright colours to make them visible
 					diff = (brightness-threshold)/255
 					rgb = [max(0, x-diff) for x in rgb]
-			hexcode = "#%02x%02x%02x" % (rgb[0]*255,rgb[1]*255,rgb[2]*255)
+			rgb = [round(x * 255) for x in rgb]
+			hexcode = "#{0[0]:02x}{0[1]:02x}{0[2]:02x}".format(rgb)
 			self.qt_el_colour_table[code] = hexcode
 
 	def keyPressEvent(self, event):
 		if (event.modifiers == Qt.ControlModifier and event.key() == Qt.Key_Q) or \
 			(event.modifiers == Qt.AltModifier and event.keyval == Qt.Key_X):
-			#Quit on ctrl+q or alt+x
-			print("close")
+			# Quit on ctrl+q or alt+x
 			self.close()
 		else:
 			super().keyPressEvent(event)
@@ -180,8 +180,8 @@ class ChatGUI(QMainWindow):
 	def do_login(self):
 		# Pass current values to the new login dialog, if there are any
 		defaults = {}
-		if self.elc != None:
-			if self.elc.session != None and self.elc.session.name != None:
+		if self.elc is not None:
+			if self.elc.session is not None and self.elc.session.name is not None:
 				defaults['user'] = self.elc.session.name
 			defaults['port'] = self.elc.port
 			defaults['host'] = self.elc.host
@@ -194,7 +194,7 @@ class ChatGUI(QMainWindow):
 			response = l.exec()
 			if response:
 				# login credentials entered
-				if self.elc == None:
+				if self.elc is None:
 					# Initial login, setup the ELConnection
 					session = ELSession(l.user_txt.text(), l.passwd_txt.text())
 					self.elc = ELConnection(session, l.host_txt.text(), l.port_spin.value())
@@ -232,7 +232,7 @@ class ChatGUI(QMainWindow):
 		self.socket_notifiers.append((data_notifier, err_notifier))
 	
 	def unregister_socket_notifier(self):
-		for dn,en in self.socket_notifiers:
+		for dn, en in self.socket_notifiers:
 			dn.setEnabled(False)
 			en.setEnabled(False)
 			del dn
@@ -243,7 +243,7 @@ class ChatGUI(QMainWindow):
 		cursor = self.chat_area.textCursor()
 		cursor.movePosition(QTextCursor.End, QTextCursor.MoveAnchor)
 		cursor.insertHtml(msg)
-		#Get the current scrollbar position and only scroll if the user is looking
+		# Get the current scrollbar position and only scroll if the user is looking
 		# at the bottom line (to allow scrolling up to read backlog)
 		scrollbar = self.chat_area.verticalScrollBar()
 		if scrollbar.value() == scrollbar.maximum():
@@ -258,7 +258,7 @@ class ChatGUI(QMainWindow):
 				msg = '<font color="{}">{}</font>'.format(colour, msg)
 			self.append_html(msg)
 
-	def show_popup_message(self, msg, title="Message"):
+	def show_popup_message(self, msg):
 		alert = QMessageBox(self)
 		alert.setText(msg)
 		alert.setStandardButtons(QMessageBox.Close)
@@ -267,28 +267,28 @@ class ChatGUI(QMainWindow):
 		alert.setAttribute(Qt.WA_DeleteOnClose, True)
 		alert.show()
 	
-	def send_msg(self, widget=None, data=None):
+	def send_msg(self):
 		msg = self.msg_txt.text()
 		if msg != '':
 			t = ELNetToServer.RAW_TEXT
 			if msg.startswith('/'):
-				#PMs should not include the /, but use a special type
+				# PMs should not include the /, but use a special type
 				t = ELNetToServer.SEND_PM
 				msg = msg[1:]
 			
 			el_msg = str_to_el_str(str(msg))
 			self.elc.send(ELPacket(t, el_msg))
 			self.msg_txt.setText('')
-			#input text buffer handling
+			# input text buffer handling
 			if self.msg_txt.msgb_idx > 0:
-				#Remove any un-sent text from the input buffer
+				# Remove any un-sent text from the input buffer
 				self.msg_txt.msg_buff.pop(0)
 			self.msg_txt.msgb_idx = 0
 			if t == ELNetToServer.SEND_PM:
-				#Re-add the / that was removed above
+				# Re-add the / that was removed above
 				msg = '/'+msg
 			if len(self.msg_txt.msg_buff) == 0 or self.msg_txt.msg_buff[0] != msg:
-				#Avoid duplicate entries in the backlog
+				# Avoid duplicate entries in the backlog
 				self.msg_txt.msg_buff.insert(0, msg)
 		return True
 	
@@ -299,11 +299,11 @@ class ChatGUI(QMainWindow):
 			self.elc.keep_alive()
 		return True
 
-	def __elc_error(self, msg = None):
+	def __elc_error(self, msg=None):
 		"""Called by qt when an error with the socket occurs.
 		May also be called by self.__process_packets, in which case msg is set"""
-		err_str = "A networking error occured, please log in again"
-		if msg != None:
+		err_str = "A networking error occurred, please log in again"
+		if msg is not None:
 			desc_str = msg
 		else:
 			desc_str = None
@@ -339,35 +339,35 @@ class ChatGUI(QMainWindow):
 class ChatInput(QLineEdit):
 	def __init__(self):
 		super().__init__()
-		self.msg_buff = [] # list of messages, for CTRL+UP/UP and DOWN
+		self.msg_buff = []  # list of messages, for CTRL+UP/UP and DOWN
 		self.msgb_idx = 0
 		self.last_pm_from = None
 
 	def keyPressEvent(self, event):
 		if event.key() == Qt.Key_Up:
 			if self.msgb_idx == 0 and len(self.msg_buff) > 0:
-				#This is the first up-keypress, store what's in the input box as the first entry in the buffer
+				# This is the first up-keypress, store what's in the input box as the first entry in the buffer
 				self.msg_buff.insert(0, self.text())
 				self.msgb_idx = 1
 				self.setText(self.msg_buff[self.msgb_idx])
 			elif self.msgb_idx > 0 and self.msgb_idx < len(self.msg_buff)-1:
-				#Further browsing upwards in the buffer
+				# Further browsing upwards in the buffer
 				self.msgb_idx += 1
 				self.setText(self.msg_buff[self.msgb_idx])
-			#Position the cursor at the end of the input
+			# Position the cursor at the end of the input
 			self.setCursorPosition(len(self.text()))
 		elif event.key() == Qt.Key_Down:
 			if self.msgb_idx > 1:
 				self.msgb_idx -= 1
 				self.setText(self.msg_buff[self.msgb_idx])
 			elif self.msgb_idx == 1:
-				#We're at the bottom of the buffer, restore what was initially in the input box and remove it from the list of input
+				# We're at the bottom of the buffer, restore what was initially in the input box and remove it from the list of input
 				self.setText(self.msg_buff.pop(0))
 				self.msgb_idx = 0
-			#Position the cursor at the end of the input
+			# Position the cursor at the end of the input
 			self.setCursorPosition(len(self.text()))
 		elif event.key() == Qt.Key_Slash and len(self.text()):
-			#Allow "//" input to reply to last person we received a PM from
+			# Allow "//" input to reply to last person we received a PM from
 			old_text = self.text()
 			if self.last_pm_from is not None and old_text[0] == '/' and self.cursorPosition() == 1:
 				new_text = '/'+self.last_pm_from+' '+old_text[1:]
@@ -404,7 +404,7 @@ class ChannelList(QTreeWidget):
 			item = self.itemBelow(item)
 		size = super().sizeHint()
 		size.setWidth(10)
-		size.setHeight(height+2) #Magic number +2 to get rid of scroll bar
+		size.setHeight(height+2)  # Magic number +2 to get rid of scroll bar
 		return size
 
 	def __set_active_channel(self, active):
@@ -413,7 +413,7 @@ class ChannelList(QTreeWidget):
 		if not active:
 			# Radio button being un-toggled, ignore
 			return
-		#Find toggled radio button's number
+		# Find toggled radio button's number
 		item = self.topLevelItem(0)
 		ch = None
 		while item:
@@ -426,9 +426,9 @@ class ChannelList(QTreeWidget):
 			# No checked items.
 			# TODO: This shouldn't happen, find a proper action
 			return
-		#Update the session's list and the server
+		# Update the session's list and the server
 		self.main_win.elc.session.set_active_channel(ch)
-		#Update the GUI list
+		# Update the GUI list
 		self.rebuild_channel_list(self.main_win.elc.session.channels)
 
 	def __insert_chan_num(self, item, column):
@@ -450,8 +450,7 @@ class ChannelList(QTreeWidget):
 				c_str = "Guild"
 			else:
 				c_str = str(chan.number)
-			#TODO: #14: Replace element 0 in the below tuple with the channel's text name (if any)
-			##self.channel_list.append((c_str, chan.is_active, chan.number))
+			# TODO: #14: Replace element 0 in the below tuple with the channel's text name (if any)
 			list_item = QTreeWidgetItem()
 			# Add channel name
 			list_item.setText(0, c_str)
